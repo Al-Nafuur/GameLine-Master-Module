@@ -22,9 +22,18 @@
     processor 6502
 
 
-ORIGINAL    = 1
+;===============================================================================
+; A S S E M B L E R - S W I T C H E S
+;===============================================================================
+
+ORIGINAL        = 1         ; 1 = compile 100% identical to dump
 
 
+;===============================================================================
+; C O N S T A N T S
+;===============================================================================
+
+;GameLine registers:
 GL_481          = $481
 GL_4AD          = $4ad      ; allows write to $1000?
 
@@ -35,10 +44,10 @@ GL_583          = $583
 GL_680          = $680
 
 GL_850          = $850    
-GL_880          = $880      ; also ,X; X = 4  ($880 = map $1c00 into $1800?)
+GL_880          = $880      ; also ,X; X = 4  ($880 = map $1c00 ROM into $1800?)
 GL_884          = $884
-GL_885          = $885      ; allow reading from $1800..
-GL_8A4          = $8a4      ; writes to L1802
+GL_885          = $885      ; allow reading from $1800.. (RAM?)
+GL_8A4          = $8a4      ; writes to $1802
 GL_8A5          = $8a5      ; writes to $1802, $180c, $180d, $180e..$1815
 
 GL_980          = $980      ; ,X; X = 0|13|...
@@ -98,9 +107,8 @@ RESP0           = $10  ; (W)
 RESP1           = $11  ; (W)
 
 AUDC0           = $15  ; (W)
-AUDC1           = $16  ; (W)
 AUDF0           = $17  ; (W)
-AUDF1           = $18  ; (W)
+AUDF1           = $18  ; (W)        ; used due to bug
 AUDV0           = $19  ; (W)
 GRP0            = $1b  ; (W)
 GRP1            = $1c  ; (W)
@@ -115,6 +123,7 @@ HMCLR           = $2b  ; (W)
 
 SWCHA           = $0280
 SWCHB           = $0282
+TIM1T           = $0294
 TIM8T           = $0295
 TIM64T          = $0296
 T1024T          = $0297
@@ -125,19 +134,20 @@ T1024T          = $0297
 ;-----------------------------------------------------------
 
 ram_80          = $80       ; always 1
-ram_81          = $81       ; X for GL_580     ,x (X = 2)
+ram_81          = $81       ; X for GL_580,x (X = 2)
 ram_82          = $82       ; X for GL_880,x (X = 4)
 ram_83          = $83       ; X for GL_980,x (X = 13|0)
 ram_84          = $84
 ram_85          = $85
 ram_86          = $86
 ram_87          = $87
-ram_88          = $88
+ram_88          = $88       ; only loaded
 
 ram_8B          = $8b
-ram_8C          = $8c
+ram_8C          = $8c       ; temp. var
 color           = $8d
-ram_8E          = $8e
+ram_8E          = $8e       ; frame counter?
+;---------------------------------------
 ptrLst          = $8f
 ram_8F          = ptrLst
 ram_90          = ptrLst+1
@@ -151,8 +161,9 @@ ram_97          = ptrLst+8
 ram_98          = ptrLst+9
 ram_99          = ptrLst+10
 ram_9A          = ptrLst+11
-ram_9B          = $9b
-ram_9C          = $9c
+;---------------------------------------
+flashTimer      = $9b
+flashState      = $9c
 yDial           = $9d
 xDial           = $9e
 numDigits       = $9f
@@ -161,12 +172,14 @@ lastFire        = $a1
 lastSwitches    = $a2
 lastJoyDir      = $a3
 inputDelay      = $a4
-ram_A5          = $a5
-ram_A6          = $a6
+ram_A5          = $a5       ; only decreased
+ram_A6          = $a6       ; input related
+;---------------------------------------
 digitLst        = $a7   ; ..$a9
 digit0          = digitLst        
 digit1          = digitLst+1
 digit2          = digitLst+2
+;---------------------------------------
 
 dataPtr         = $ab   ;..$ac
 dataPtr2        = $ad   ;..$ae
@@ -186,54 +199,45 @@ jmpIdx          = $bb
 ram_BC          = $bc
 numberIdx       = $bd
 ram_BE          = $be
-dialType        = $bf
-counter         = $c0   ;..$c1
+dialType        = $bf   ; unsure!
+counter         = $c0   ;..$c1      (*1000 = ~cylces)
 numberPtr       = $c2   ;..$c3
-speed           = $c4
+dialSpeed       = $c4   ; also type
 
-ram_C6          = $c6
-
+ram_C6          = $c6   ; never read, written once?
+ram_C7          = $c7
+ram_C8          = $c8
 ram_C9          = $c9
-ram_CA          = $ca
-
-ram_D0          = $d0
-ram_D1          = $d1
+ram_CA          = $ca   ; temp. var
+ram_CB          = $cb
+ram_CC          = $cc
+ram_CD          = $cd
+ram_CE          = $ce
+ram_CF          = $cf
+ram_D0          = $d0   ; increased once (hi)
+ram_D1          = $d1   ; increased once (low)
 ram_D2          = $d2
 ram_D3          = $d3
-ram_D4          = $d4
-
+ram_D4          = $d4   ; always 0?
+ram_D5          = $d5
+ram_D6          = $d6
+ram_D7          = $d7
 ram_D8          = $d8
-
+ram_D9          = $d9
 ram_DA          = $da
-
+ram_DB          = $db
+ram_DC          = $dc
+ram_DD          = $dd
 ram_DE          = $de
 ram_DF          = $df
 ram_E0          = $e0
 
-ram_E6          = $e6
-
-ram_EB          = $eb
-
-ram_F5          = $f5
-
-ram_FD          = $fd
-;                 $fe  (s)
-;                 $ff  (s)
-
-
-;-----------------------------------------------------------
-;      Non Locatable Labels
-;-----------------------------------------------------------
-
-;L12dc           = $12dc
-;L14b9           = $14b9
-;L14d5           = $14d5
-;L14e0           = $14e0
-;L1533           = $1533
-;L17f1           = $17f1 ???
-;L19a7           = $19a7
-;L19f5           = $19f5
-;L1cbc           = $1cbc ???
+;                 $fa  (is)
+;                 $fb  (is)
+;                 $fc  (is)
+;                 $fd  (is)
+;                 $fe  (is)
+;                 $ff  (is)
 
 
 ;***********************************************************
@@ -241,11 +245,14 @@ ram_FD          = $fd
 ;***********************************************************
 
     SEG     CODE
+
     ORG     $1000
+    RORG    $1000
 
 L1000
     jmp     L1009                   ;3   =   3
 
+L1003
     .word   L1106, L139a, L15d8     ; $1003 (D)
 
 L1009
@@ -253,6 +260,7 @@ L1009
     tax                             ;2   =   4
 L100c
     sta     $00,x                   ;4
+;L100f?
     txs                             ;2
     inx                             ;2
     bne     L100c                   ;2/3
@@ -274,9 +282,9 @@ L100c
 Failed
     lda     GL_8A4                  ;4      page 4 into $800 for writing
     ldx     #$00                    ;2
-    stx     L1802                   ;4
+    stx     $1802                   ;4
     lda     GL_8A5                  ;4      page 5 into $800 for writing
-    stx     L1802                   ;4
+    stx     $1802                   ;4
     lda     #$00                    ;2
     sta     ram_83                  ;3
     lda     #$ff                    ;2
@@ -287,8 +295,8 @@ Failed
 
 .success
     lda     GL_884                  ;4      page 4 into $800
-    lda     L1808                   ;4
-    ldx     L1809                   ;4
+    lda     $1808                   ;4
+    ldx     $1809                   ;4
     jmp     L1106                   ;3   =  15
 
 XPosSprites SUBROUTINE
@@ -352,7 +360,7 @@ L10b3 SUBROUTINE
     ldx     #$00                    ;2
     lda     #<L1c00                 ;2
     ldy     #>L1c00                 ;2   =   6
-L10b9 ;L14b9?
+L10b9 
     sta     ptrLst,x                ;4
     inx                             ;2
     sty     ptrLst,x                ;4
@@ -373,13 +381,11 @@ L10c9 SUBROUTINE
 
 L10d3 SUBROUTINE
     lda     GL_885                  ;4
-;L14d5?
-    lda     L1808                   ;4
-    ldx     L1809                   ;4   =  12
+    lda     $1808                   ;4
+    ldx     $1809                   ;4   =  12
 L10dc
     sta     dataPtr2                ;3
     stx     dataPtr2+1              ;3
-;L14e0?
     jsr     L10f7                   ;6   =  12
 SetupBanks
     stx     ram_DE                  ;3
@@ -397,8 +403,8 @@ L10f7 SUBROUTINE
 
 L10fa SUBROUTINE
     lda     GL_884                  ;4
-    lda     L1806                   ;4
-    ldx     L1807                   ;4
+    lda     $1806                   ;4
+    ldx     $1807                   ;4
     jmp     L10dc                   ;3   =  15
 
 L1106
@@ -409,13 +415,13 @@ L1106
     sta     ram_AF                  ;3
     sta     ram_8E                  ;3
     sta     ram_D2                  ;3
-    lda     #$28                    ;2
+    lda     #BROWN|$8               ;2
     sta     color                   ;3
     lda     #$01                    ;2
     sta     CTRLPF                  ;3
     lda     #$0a                    ;2
     sta     inputDelay              ;3
-    sta     ram_9B                  ;3   =  41
+    sta     flashTimer              ;3   =  41
 L1123
     jsr     L12bf                   ;6
     ldy     #$08                    ;2
@@ -429,7 +435,7 @@ L1134
     lda     #$12                    ;2
     sta     T1024T                  ;4
     ldx     #$ff                    ;2
-    stx     ram_9C                  ;3
+    stx     flashState              ;3
     inx                             ;2
     stx     numDigits               ;3
     inx                             ;2
@@ -533,7 +539,7 @@ L11e0
     pla                             ;4
     lda     #$fe                    ;2
     sta     PF1                     ;3   =  37
-L11f5 ;L19f5?
+L11f5 ;.loop?
     lda     ram_87                  ;3
     clc                             ;2
     adc     ram_8B                  ;3
@@ -654,7 +660,7 @@ VerticalSync SUBROUTINE
 
 L12bf SUBROUTINE
     jsr     VerticalSync            ;6
-    lda     #$5a                    ;2
+    lda     #$5a                    ;2          = ~720 cycles
     sta     TIM8T                   ;4
     lda     #$00                    ;2
     sta     PF0                     ;3
@@ -667,7 +673,6 @@ L12bf SUBROUTINE
     sta     COLUP0                  ;3
     sta     COLUP1                  ;3
     bvs     L12e5
-L12dc = . - 1
     sta     COLUBK                  ;3
     lda     color                   ;3
     sta     COLUPF                  ;3
@@ -699,7 +704,6 @@ L1304
 WaitTim SUBROUTINE
     lda     TIM8T                   ;4
     bpl     WaitTim                 ;2/3 =   6
-L130f
     sta     WSYNC                   ;3   =   3
 ;---------------------------------------
     rts                             ;6   =   6
@@ -754,7 +758,7 @@ Dial SUBROUTINE
     bne     L135a                   ;2/3
     dey                             ;2
     sty     dialType                ;3          = $ff
-    sty     speed                   ;3
+    sty     dialSpeed               ;3
     inc     ram_BC                  ;5
     jmp     L137a                   ;3   =  21
 
@@ -765,12 +769,12 @@ L135a
     beq     L1393                   ;2/3
     ldy     #$00                    ;2
     sty     ram_BE                  ;3
-    inc     speed                   ;5
-    lda     speed                   ;3
+    inc     dialSpeed               ;5
+    lda     dialSpeed               ;3
     cmp     #$02                    ;2
     bne     L137a                   ;2/3
     dey                             ;2
-    sty     speed                   ;3          Y = $ff
+    sty     dialSpeed               ;3          Y = $ff
     inc     dialType                ;5
     lda     dialType                ;3
     cmp     #$01                    ;2
@@ -778,13 +782,13 @@ L135a
     sty     dialType                ;3   =  46  Y = $ff
 L137a
     lda     GL_885                  ;4
-    lda     L1802                   ;4
+    lda     $1802                   ;4
     bne     L1392                   ;2/3
     lda     GL_8A5                  ;4
     lda     dialType                ;3          backup BF and speed
-    sta     L180c                   ;4
-    lda     speed                   ;3
-    sta     L180d                   ;4
+    sta     $180c                   ;4
+    lda     dialSpeed               ;3
+    sta     $180d                   ;4
     lda     GL_885                  ;4   =  32
 L1392
     rts                             ;6   =   6
@@ -853,6 +857,9 @@ L13d7
 
 ;###############################################################################
 
+    ORG     $1400
+    RORG    $1400
+
 L1400 SUBROUTINE
     lda     ram_8E                  ;3
     and     #$e0                    ;2
@@ -863,13 +870,13 @@ L1400 SUBROUTINE
     clc                             ;2
     adc     #$02                    ;2
     sta     color                   ;3   =  22
-L1410
+.loop
     jsr     L141d                   ;6
     clc                             ;2
     adc     #$02                    ;2
     sta     color                   ;3
     and     #$0f                    ;2
-    bne     L1410                   ;2/3
+    bne     .loop                   ;2/3
     rts                             ;6   =  23
 
 L141d SUBROUTINE
@@ -947,10 +954,10 @@ CallingGfx
 
 L146d SUBROUTINE
     lda     GL_885                  ;4
-    lda     L180c                   ;4          restore BF and speed
+    lda     $180c                   ;4          restore BF and speed
     sta     dialType                ;3
-    lda     L180d                   ;4
-    sta     speed                   ;3
+    lda     $180d                   ;4
+    sta     dialSpeed               ;3
     rts                             ;6   =  24
 
 CheckBit6 SUBROUTINE
@@ -993,21 +1000,19 @@ L14af
     sta     counter                 ;3
     lda     #$06                    ;2
     sta     counter+1               ;3
-L14b9 = . - 1
     lda     #0                      ;2
     sta     jmpIdx                  ;3
     lda     #$00                    ;2
     sta     numberIdx               ;3   =   8
 .loop
     ldx     ram_BE                  ;3
-    lda     L1812,x                 ;4          $15f6(|$ffff?)
+    lda     $1812,x                 ;4          $15f6(|$ffff?)
     sta     numberPtr               ;3
-    lda     L1813,x                 ;4
+    lda     $1813,x                 ;4
     sta     numberPtr+1             ;3
     bpl     .skip                   ;2/3
     jsr     Dial                    ;6
     jmp     .loop
-L14d5 = . - 1
 
 .skip
     inc     ram_BE                  ;5
@@ -1018,10 +1023,9 @@ DialNumber SUBROUTINE                ;          also from CheckBit6 (jmpIdx = 0)
     ldy     numberIdx               ;3
     lda     (numberPtr),y           ;5          dial a number
     cmp     #$0f                    ;2          last digit done?
-L14e0 = . - 1
     bne     L14ed                   ;2/3         no
     ldy     #$04                    ;2          -> jmpIdx
-    ldx     L180e                   ;4          -> counter+1 (=99)
+    ldx     $180e                   ;4          -> counter+1 (=99)
     lda     #$00                    ;2          -> counter
     jmp     SetCounterHi            ;3   =  17
 
@@ -1067,44 +1071,29 @@ L1521
     rts                             ;6   =  25  return from CheckBit6, DialNumber
 
 L152c
-    ldy     speed                   ;3
+    ldy     dialSpeed               ;3
     bmi     .toneDial               ;2/3        A = ram_DE
     cmp     #$00                    ;2
     bne     .notZero                ;2/3
-L1533 = . - 1
     lda     #10                     ;2   =   2  replace 0 with 10
 .notZero
     sta     pulseCount              ;3   =   3
 NextPulse
     lda     GL_STOP_PULSE           ;4
-    lda     #$0c                    ;2          make some noise
+    lda     #$0c                    ;2          make some fake noise
     sta     AUDC0                   ;3
     lda     #$1f                    ;2
-    sta     AUDF1                   ;3
+    sta     AUDF1                   ;3          BUG???
     lda     #$0f                    ;2
     sta     AUDV0                   ;3
     lda     L1612,y                 ;4          -> counter = 26|52 (60%)
     ldy     #$01                    ;2          -> jmpIdx
     jmp     SetCounter              ;3   =  28
 
-; Ein einzelner Impuls dauert 100 ms. 
-; Das in Deutschland verwendete Impuls-Pause-Verhältnis ist 60/40, 
-; was bedeutet, dass die Schleife eine Impulsdauer von 100 ms hat, 
-; 60 ms geöffnet und 40 ms geschlossen ist. 
-; Nach Ablauf der Impulsfolge bleibt die Schleife geschlossen.
-; Die Pause zwischen den gewählten Ziffern beträgt mindestens die Zeit zweier Impulse, also 200 ms
-
-; The specifications of the Bell System in the US required service personnel 
-; to adjust dials in customer stations to a precision of 9.5 to 10.5 pulses 
-; per second (PPS), but the tolerance of the switching equipment was generally 
-; between 8 and 11 PPS.[2] The British (GPO, later Post Office Telecommunications) 
-; standard for Strowger switch exchanges has been ten impulses per second 
-; (allowable range 7 to 12) and a 66% break ratio (allowable range 63% to 72%).
-
 .toneDial
     tay                             ;2          
     asl                             ;2
-    adc     #$0a                    ;2          make some noise
+    adc     #$0a                    ;2          make some fake noise
     sta     AUDF0                   ;3
     lda     #$04                    ;2
     sta     AUDC0                   ;3
@@ -1121,16 +1110,16 @@ L156b SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 
     lda     GL_START_PULSE          ;4
     lda     #$00                    ;2
     sta     AUDV0                   ;3
-    ldy     speed                   ;3
+    ldy     dialSpeed               ;3
     lda     L1614,y                 ;4          -> counter = 18|36 (40%)
     ldy     #$02                    ;2          -> jmpIdx
     jmp     SetCounter              ;3   =  21
 
 L157c SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 2)
-    ldy     speed                   ;3
+    ldy     dialSpeed               ;3
     dec     pulseCount              ;5
     bne     NextPulse               ;2/3
-    ldy     speed                   ;3
+    ldy     dialSpeed               ;3
     lda     L1616,y                 ;4          -> counter = 315|630
     ldx     L1618,y                 ;4
     ldy     #$00                    ;2          -> jmpIdx
@@ -1202,7 +1191,7 @@ L15d8
 L15f1 SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 6)
     lda     #$ff                    ;2
     sta     jmpIdx                  ;3
-;L19f5?
+;.loop?
     rts                             ;6   =  11  return from CheckBit6
 
 L15f6
@@ -1221,7 +1210,7 @@ L1616
 L1618
     .byte   $01,$02                         ; $1618 (D)
 
-L161a ; pulse or tone dialing?
+L161a ; fake tone dialing sound frequencies:
     .byte   $17,$10,$14
     .byte   $18,$11,$15
     .byte   $19,$12,$16
@@ -1548,7 +1537,6 @@ L17e7
 
 L17f0
     lda     #<L17fb                 ;2
-L17f1 = . - 1
     ldx     #>L17fb                 ;2
     jmp     L17e7                   ;3   =   7
 
@@ -1560,33 +1548,36 @@ L17fb
 
 ;###############################################################################
 
-L1800
+  IF 1
+    include "Code_1400.asm"
+  ELSE ;{
+$1800
     .byte   $cc                             ; $1800 (D)
-L1801
+$1801
     .byte   $21                             ; $1801 (D)
-L1802
+$1802
     .byte   $00,$cd,$3c,$77                 ; $1802 (D)
-L1806
+$1806
     .byte   $9f                             ; $1806 (D)
-L1807
+$1807
     .byte   $8f                             ; $1807 (D)
-L1808
+$1808
     .byte   $a0                             ; $1808 (D)
-L1809
+$1809
     .byte   $00                             ; $1809 (D)
-L180a
+$180a
     .byte   $4b                             ; $180a (D)
-L180b
+$180b
     .byte   $25                             ; $180b (D)
-L180c
+$180c
     .byte   $ed                             ; $180c (D)
-L180d
+$180d
     .byte   $77                             ; $180d (D)
-L180e
+$180e
     .byte   $db,$c7,$98,$c2                 ; $180e (D)
-L1812
+$1812
     .byte   $a6                             ; $1812 (D)
-L1813
+$1813
     .byte   $a7,$ae,$69,$81,$4b,$2d,$42,$c2 ; $1813 (D)
     .byte   $0c,$33,$f6,$3c,$9f,$e5,$9c,$3d ; $181b (D)
     .byte   $05,$20,$0b,$5f,$d6,$01,$01,$82 ; $1823 (D)
@@ -1639,22 +1630,17 @@ L1813
     .byte   $60,$89,$98,$32,$55,$41,$4a,$2a ; $1993 (D)
     .byte   $2b,$f2,$db,$df,$bf,$b7,$8e,$5b ; $199b (D)
     .byte   $33,$89,$b2,$f4                 ; $19a3 (D)
-L19a7
     .byte   $1e,$91,$c3,$22,$7c,$a8,$e7,$9f ; $19a7 (D)
     .byte   $4f,$e7,$c2,$e0                 ; $19af (D)
-L19b3
     .byte   $3f,$07,$0e,$b7,$17,$44,$32,$20 ; $19b3 (D)
     .byte   $04,$ce,$02,$fa,$97,$16,$7a,$e4 ; $19bb (D)
     .byte   $85,$bc,$1e,$01,$98,$22,$0e,$5f ; $19c3 (D)
     .byte   $67,$df,$ed,$90                 ; $19cb (D)
-L19cf
     .byte   $ef,$a6,$b2,$69,$63,$d8,$2e,$90 ; $19cf (D)
     .byte   $9b,$d0,$a2,$83,$14,$ad,$ff,$fb ; $19d7 (D)
-L19df
     .byte   $fa,$e9,$e8,$fb,$49,$45,$e1,$09 ; $19df (D)
     .byte   $ea,$50,$1e,$03,$e6,$ff,$e5,$fb ; $19e7 (D)
     .byte   $f6,$88,$3d,$ca,$b6,$6d         ; $19ef (D)
-L19f5
     .byte   $fd,$b2,$a0,$18,$40,$c0,$2c,$eb ; $19f5 (D)
     .byte   $fc,$b0,$bf,$01,$51,$07,$a2,$85 ; $19fd (D)
     .byte   $fd,$fc,$ba,$b0,$10,$14,$c3,$c0 ; $1a05 (D)
@@ -1681,7 +1667,6 @@ L1a20
     .byte   $21,$82,$1c,$3c,$bf,$bf,$ef,$fc ; $1aa0 (D)
     .byte   $d1,$e9,$0a,$c3,$b5,$57,$5d,$bc ; $1aa8 (D)
     .byte   $11,$1b,$2d                     ; $1ab0 (D)
-L1ab3
     .byte   $29,$ed,$8e,$af,$57,$bf,$f8,$5c ; $1ab3 (D)
     .byte   $d0,$bd,$99,$fd,$0e,$82,$28,$00 ; $1abb (D)
     .byte   $26,$87,$ef,$f8,$f8,$b3,$6d,$3f ; $1ac3 (D)
@@ -1724,8 +1709,12 @@ L1ab3
     .byte   $3a,$cf,$7b,$d8,$6f,$20,$22,$b8 ; $1beb (D)
     .byte   $20,$fe,$e3,$cc,$df,$da,$46,$d4 ; $1bf3 (D)
     .byte   $ac,$60,$b2,$ad,$a5             ; $1bfb (D)
+  ENDIF ;}
 
 ;###############################################################################
+
+    ORG     $1c00
+    RORG    $1c00
 
 L1c00
     .word   $1ec1                           ; $1c00 (D) ram_AF, ram_D2+ram_B1
@@ -1838,7 +1827,7 @@ L1c7a
     ldx     #$00                    ;2   =   6
 .loop
     lda     L1c9a,x                 ;4
-    sta     L180e,x                 ;5
+    sta     $180e,x                 ;5
     inx                             ;2
     cpx     #$08                    ;2
     bne     .loop                   ;2/3
@@ -1858,7 +1847,7 @@ Check1800 SUBROUTINE
     ldx     #$03                    ;2
     lda     #$e9                    ;2   =   4
 L1ca6
-    cmp     L1802,x                 ;4
+    cmp     $1802,x                 ;4
   IF ORIGINAL
     bne     .failed                 ;2/3
   ELSE
@@ -1867,9 +1856,9 @@ L1ca6
     asl                             ;2
     dex                             ;2
     bne     L1ca6                   ;2/3
-    lda     #>L1800                 ;2
+    lda     #>$1800                 ;2
     sta     dataPtr2+1              ;3
-    ldy     #<L1800                 ;2
+    ldy     #<$1800                 ;2
     sty     dataPtr2                ;3
     tya                             ;2   =  24      = 0
 .loop
@@ -1879,10 +1868,10 @@ L1ca6
     bne     .skipHi                 ;2/3
     inc     dataPtr2+1              ;5   =   9
 .skipHi
-    ldx     L1800                   ;4
+    ldx     $1800                   ;4
     cpx     dataPtr2                ;3
     bne     .loop                   ;2/3
-    ldx     L1801                   ;4
+    ldx     $1801                   ;4
     cpx     dataPtr2+1              ;3
     bne     .loop                   ;2/3
 ;  IF ORIGINAL
@@ -1917,7 +1906,7 @@ L1ce4
     rts                             ;6   =  22
 
     SUBROUTINE
-.loop ;L18f9?
+.loop ;$18f9?
     nop                             ;2
     lda     (ram_91),y              ;5
     and     ram_96|$100             ;4      = $ff       flash
@@ -1947,35 +1936,34 @@ DrawDialDigits = $1914
     rts                             ;6   =  23
 
     SUBROUTINE
-DrawDialPad = $192b
+DrawDialPad = . - $400
     lda     ram_86                  ;3
     sta     COLUPF                  ;3
     lda     ram_87                  ;3
     sta     ram_A0                  ;3   =  12
-L1d33; = L1933,L1533?
-    lda     #$fe                    ;2
+    lda     #%11111110              ;2
     sta     PF2                     ;3
     jsr     XPosSprite0             ;6
     ldx     #$06                    ;2
     jsr     WaitLines               ;6
-    lda     #<L1a24                 ;2          1 4 7 *
+    lda     #<DigitCol0             ;2          1 4 7 *
     sta     ram_8F                  ;3
-    lda     #<L1a50                 ;2          2 5 8 0
+    lda     #<DigitCol1             ;2          2 5 8 0
     sta     ram_91                  ;3
-    lda     #<L1a7c                 ;2          3 6 9 #
+    lda     #<DigitCol2             ;2          3 6 9 #
     sta     ram_93                  ;3
-    lda     #>$1a24                 ;2
+    lda     #>DigitCol0             ;2
     sta     ram_90                  ;3
-    lda     #>$1a50                 ;2
+    lda     #>DigitCol1             ;2
     sta     ram_92                  ;3
-    lda     #>$1a7c                 ;2
+    lda     #>DigitCol2             ;2
     sta     ram_94                  ;3
     ldy     #$00                    ;2
     sty     ram_86                  ;3
     tya                             ;2   =  56
 .loopRow
     clc                             ;2
-    adc     #$0b                    ;2
+    adc     #DIGIT_H                ;2
     sta     ram_87                  ;3
     sty     ram_DE                  ;3
     jsr     L19a7                   ;6
@@ -1985,7 +1973,7 @@ L1d33; = L1933,L1533?
     ldy     ram_DE                  ;3
     iny                             ;2
     lda     ram_86                  ;3
-    cmp     #$22                    ;2
+    cmp     #DIGIT_H*3+1            ;2
     bmi     .loopRow                ;2/3
     ldx     #$06                    ;2
     jsr     WaitLines               ;6
@@ -1995,49 +1983,50 @@ L1d33; = L1933,L1533?
     jsr     WaitLines               ;6
     lda     #$00                    ;2
     sta     ram_86                  ;3
-    lda     #$0b                    ;2
+    lda     #DIGIT_H                ;2
     sta     ram_87                  ;3
-    jsr     L19df                   ;6          draw digits at bottom squares
-    jsr     L19b3                   ;6
+    jsr     SetupBottomDigits       ;6          prepare digits at bottom squares
+    jsr     FlashCurrentDigit       ;6
     jsr     DrawDialDigits          ;6
     lda     #YELLOW|$f              ;2
     sta     COLUPF                  ;3
-    lda     #$98                    ;2
+    lda     #%10011000              ;2
     sta     WSYNC                   ;3   = 101
 ;---------------------------------------
-    sta     PF2                     ;3
+    sta     PF2                     ;3          underline
     lda     #$00                    ;2
     sta     WSYNC                   ;3   =   8
 ;---------------------------------------
     sta     PF2                     ;3
     rts                             ;6   =   9
 
-;L19a7
-    jsr     L19cf                   ;6
+    SUBROUTINE
+L19a7 = . - $400
+    jsr     ClearFlash              ;6
     cpy     yDial                   ;3
-    bne     L1db2                   ;2/3
+    bne     .exit                   ;2/3
     ldx     xDial                   ;3
     dec     ram_98,x                ;6   =  20      invert
-L1db2
+.exit
     rts                             ;6   =   6
 
-;L19b3
-    jsr     L19cf                   ;6
+FlashCurrentDigit = . - $400
+    jsr     ClearFlash              ;6
     ldx     numDigits               ;3
     cpx     #$03                    ;2
-    beq     L1db2                   ;2/3
-    lda     ram_9C                  ;3
+    beq     .exit                   ;2/3
+    lda     flashState              ;3
     sta     ram_95,x                ;4              flash
-    dec     ram_9B                  ;5
-    bne     L1db2                   ;2/3
-    lda     ram_9C                  ;3
+    dec     flashTimer              ;5
+    bne     .exit                   ;2/3
+    lda     flashState              ;3
     eor     #$ff                    ;2
-    sta     ram_9C                  ;3
+    sta     flashState              ;3
     lda     #$14                    ;2
-    sta     ram_9B                  ;3
+    sta     flashTimer              ;3
     rts                             ;6   =  46
 
-;L19cf
+ClearFlash = . - $400
     ldx     #$ff                    ;2
     stx     ram_95                  ;3
     stx     ram_96                  ;3
@@ -2048,28 +2037,29 @@ L1db2
     stx     ram_9A                  ;3
     rts                             ;6   =  28
 
-;L19df
-    lda     #<L1aa8                 ;2
+    SUBROUTINE
+SetupBottomDigits = . - $400
+    lda     #<BlockGfx              ;2
     sta     ram_8F                  ;3
     sta     ram_91                  ;3
     sta     ram_93                  ;3
-    lda     #>L1aa8                 ;2
+    lda     #>BlockGfx              ;2
     sta     ram_90                  ;3
     sta     ram_92                  ;3
     sta     ram_94                  ;3
     ldx     #0                      ;2
     lda     ram_A0                  ;3
-    beq     L1e16                   ;2/3!
-;L19f5?
+    beq     .drawBlocks             ;2/3!
+.loop = . - $400
     cpx     numDigits               ;3
-    bpl     L1e16                   ;2/3!
+    bpl     .drawBlocks             ;2/3!
     ldy     digitLst,x              ;4
-    lda     L1ab3,y                 ;4
+    lda     DigitPtr,y              ;4
     clc                             ;2
-    adc     #<L1a24                 ;2
+    adc     #<DigitGfx              ;2
     pha                             ;3
     lda     #$00                    ;2
-    adc     #>$1a24                 ;2
+    adc     #>DigitGfx              ;2
     pha                             ;3
     txa                             ;2
     asl                             ;2
@@ -2079,19 +2069,21 @@ L1db2
     pla                             ;4
     sta.wy  ptrLst,y                ;5
     inx                             ;2
-    jmp     L19f5                   ;3   =  61
+    jmp     .loop                   ;3   =  61
 
-L1e16
+.drawBlocks
     lda     L1a20,x                 ;4
-    beq     L1e1f                   ;2/3
+    beq     .exitWait               ;2/3
     tax                             ;2
     jsr     WaitLines               ;6   =  14
-L1e1f
+.exitWait
     rts                             ;6   =   6
 
-;L1a20?
+L1a20 = . - $400
     .byte   $02,$02,$01,$00                 ; $1e20 (D)
-L1a24 ;?
+DigitGfx = . - $400;?
+DigitCol0 = . - $400
+OneGfx = . - $400
     .byte   %00000000 ; |        |            $1e24 (G)
     .byte   %00001000 ; |    #   |            $1e25 (G)
     .byte   %00011000 ; |   ##   |            $1e26 (G)
@@ -2103,6 +2095,8 @@ L1a24 ;?
     .byte   %00001000 ; |    #   |            $1e2c (G)
     .byte   %00011100 ; |   ###  |            $1e2d (G)
     .byte   %00000000 ; |        |            $1e2e (G)
+DIGIT_H = . - $400 - OneGfx
+FourGfx = . - $400
     .byte   %00000000 ; |        |            $1e2f (G)
     .byte   %00101000 ; |  # #   |            $1e30 (G)
     .byte   %00101000 ; |  # #   |            $1e31 (G)
@@ -2136,7 +2130,8 @@ L1a24 ;?
     .byte   %01000010 ; | #    # |            $1e4d (G)
     .byte   %00000000 ; |        |            $1e4e (G)
     .byte   %00000000 ; |        |            $1e4f (G)
-L1a50
+DigitCol1 = . - $400
+TwoGfx = . - $400
     .byte   %00000000 ; |        |            $1e50 (G)
     .byte   %00011000 ; |   ##   |            $1e51 (G)
     .byte   %00100100 ; |  #  #  |            $1e52 (G)
@@ -2181,7 +2176,8 @@ L1a50
     .byte   %00100100 ; |  #  #  |            $1e79 (G)
     .byte   %00011000 ; |   ##   |            $1e7a (G)
     .byte   %00000000 ; |        |            $1e7b (G)
-L1a7c
+DigitCol2 = . - $400
+ThreeGfx = . - $400
     .byte   %00000000 ; |        |            $1e7c (G)
     .byte   %00011000 ; |   ##   |            $1e7d (G)
     .byte   %00100100 ; |  #  #  |            $1e7e (G)
@@ -2226,7 +2222,7 @@ L1a7c
     .byte   %00100100 ; |  #  #  |            $1ea5 (G)
     .byte   %00000000 ; |        |            $1ea6 (G)
     .byte   %00000000 ; |        |            $1ea7 (G)
-L1aa8 = . - $400
+BlockGfx = . - $400
     .byte   %00000000 ; |        |            $1ea8 (G)
     .byte   %11111111 ; |########|            $1ea9 (G)
     .byte   %11111111 ; |########|            $1eaa (G)
@@ -2238,20 +2234,23 @@ L1aa8 = . - $400
     .byte   %11111111 ; |########|            $1eb0 (G)
     .byte   %11111111 ; |########|            $1eb1 (G)
     .byte   %00000000 ; |        |            $1eb2 (G)
-;L1ab3?
-    .byte   $4d,$00,$2c,$58,$0b,$37,$63,$16 ; $1eb3 (D)
-    .byte   $42,$6e,$d3,$cc,$ef,$f4,$16,$00 ; $1ebb (D)
+DigitPtr = . - $400
+    .byte   $4d                             ; $1eb3 (D)  
+    .byte   OneGfx-DigitGfx, TwoGfx-DigitGfx, ThreeGfx-DigitGfx
+    .byte   $0b,$37,$63
+    .byte   $16,$42,$6e
+    .byte   $d3,$cc,$ef,$f4,$16,$00         ; $1ebd (D)
     .byte   $06,$d3,$e1,$d6,$c5,$04,$12,$00 ; $1ec3 (D)
     .byte   $12,$d4,$d2,$f5,$ee             ; $1ecb (D)
 
-L1ed0
-    lda     #$7f                    ;2
+L12d0 = . - $c00
+    lda     #%01111111              ;2
     ldx     #$08                    ;2
     ldy     #$ff                    ;2
     sty     AUDV0                   ;3
     ldy     #$01                    ;2
     sty     AUDC0                   ;3
-;L12dc?
+L12dc = . - $c00
     sta     PF1                     ;3
     sta     PF2                     ;3
     stx     AUDF0                   ;3
@@ -2266,24 +2265,24 @@ L1eee
     sta     AUDV0                   ;3
     rts                             ;6   =   9
 
-;L1ef1
+L12f1 = . - $c00
     jsr     L14b9                   ;6
     lda     #$20                    ;2
     jsr     L17f1                   ;6
     lda     GL_885                  ;4
-    lda     L1802                   ;4
+    lda     $1802                   ;4
     bne     L1f09                   ;2/3
     lda     #<L1308                 ;2
-    ldx     #>$1308                 ;2
+    ldx     #>L1308                 ;2
     jmp     L130f                   ;3   =  31
 
-L1308 ;?
+L1308 = . - $c00
     brk                             ;7   =   7
 
 L1f09
-    lda     L180a                   ;4
-    ldx     L180b                   ;4
-;L130f?
+    lda     $180a                   ;4
+    ldx     $180b                   ;4
+L130f = . - $c00
     sta     dataPtr2                ;3
     stx     dataPtr2+1              ;3
     ldy     #$00                    ;2
@@ -2295,7 +2294,7 @@ L1f09
     jsr     L17f1                   ;6
     lda     ram_D3                  ;3
     jsr     L17f1                   ;6
-    lda     speed                   ;3
+    lda     dialSpeed               ;3
     asl                             ;2
     asl                             ;2
     asl                             ;2
@@ -2304,7 +2303,7 @@ L1f09
     lda     dialType                ;3
     and     #$0f                    ;2
     ora     ram_DE                  ;3
-    jsr     L17f1                   ;6          missing code!
+    jsr     L17f1                   ;6          
     jsr     L14d5                   ;6
     jsr     SetDelay                ;6
     ldy     #$00                    ;2   =  91
@@ -2378,12 +2377,12 @@ L1fc0
     lda     #$00                    ;2
     tax                             ;2
     ldy     #$a8                    ;2   =   8
-L1fc6
-    txs                             ;2
+.loop
+    txs                             ;2          this code does NOT init anything!
     inx                             ;2
-    bne     L1fc6                   ;2/3
+    bne     .loop                   ;2/3
     dey                             ;2
-    bne     L1fc6                   ;2/3
+    bne     .loop                   ;2/3
     ldx     #$05                    ;2
     lda     GL_4AD                  ;4   =  16  page 13 into $400 for writing
 L1fd2
@@ -2411,10 +2410,11 @@ L1fe4
 L1fea
     lda     GL_680                  ;4          page 0 into $600? 
     jsr     CheckSum                ;6          -> $c80
-    lda     GL_481                  ;4          page 1 into $400? page 1 into slice 1?
+    lda     GL_481                  ;4          switch bank ? into slice 0?
     lda     GL_582                  ;4          page 2 into $500? page 2 into slice 2?
     lda     GL_884                  ;4          page 4 into $800?
 L1ff8 = . - 1
     jmp     L1000                   ;3   =   6
 
+L1ffc
     .word   Start,Start                     ; $1ffc (D)
