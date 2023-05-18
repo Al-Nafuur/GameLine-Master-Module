@@ -33,27 +33,44 @@ ORIGINAL        = 1         ; 1 = compile 100% identical to dump
 ; C O N S T A N T S
 ;===============================================================================
 
-;GameLine registers:
+; * * * * *  GL-Mapping-Bits  * * * * *
 
-GL_480          = $480      ; switch bank 3 into slice 0
-GL_481          = $481
-GL_485          = $485      ; switch bank ? into slice 0
-GL_4AD          = $4ad      ; allows write to $1000?
+; SLICES (bits 8, 10 & 11):
+;   $400: slice 0
+;   $500: slice 1 
+;   $800: slice 2 
+;   $900: slice 3
 
-GL_580          = $580      ; ,X; X = 1|2|4|variable
-GL_582          = $582
-GL_583          = $583
+; BANKS & MODES (bits 0..5): 
+; bit 0, 1: 0..3 = mapped bank
+; bit 2: 0 = ROM, 1 = RAM
+; bit 3: %1101 = ??? (PROM?)
+; bit 4: here always 0
+; bit 5: 0 = read, 1 = write (RAM only) (-> if bit 5 == 1 then bit 2 == 1)
+
+; GameLine registers:        
+SL0_BX          = $480      ; switch ROM bank X into slice 0; X = 1|..
+SL0_B3          = SL0_BX    ; switch ROM bank 3 into slice 0
+SL0_B0          = $481      ; switch ROM bank 0 into slice 0
+SL0_R1          = $485      ; switch RAM bank 1 into slice 0 for reading
+SL0_WD          = $4ad      ; switch RAM bank ? into slice 0 for writing (writes to $1000)
+
+SL1_BX          = $580      ; switch ROM bank X into slice 1; X = 1|2|4|..
+SL1_B1          = $582      ; switch ROM bank 1 into slice 1
+SL1_B2          = $583      ; switch ROM bank 2 into slice 1
+
+SL2_BX          = $880      ; switch ROM bank X into slice 2; X = 4|..  
+SL2_B3          = SL2_BX    ; switch ROM bank 3 into slice 2
+SL2_R0          = $884      ; switch RAM bank 0 into slice 2 for reading
+SL2_R1          = $885      ; switch RAM bank 1 into slice 2 for reading
+SL2_WX          = $8a0      ; switch RAM bank X into slice 2 for writing (,X; writes to ???)
+SL2_W0          = $8a4      ; switch RAM bank 0 into slice 2 for writing (writes to $1802)
+SL2_W1          = $8a5      ; switch RAM bank 1 into slice 2 for writing (writes to $1802, $180c, $180d, $180e..$1815)
+
+SL3_BX          = $980      ; switch ROM bank X into slice 3; X = 0|13|...
+SL3_B3          = SL3_BX    ; switch ROM bank 3 into slice 3
 
 GL_680          = $680
-
-GL_880          = $880      ; also ,X; X = 4  ($880 = map $1c00 ROM into $1800?)
-GL_884          = $884
-GL_885          = $885      ; allow reading from $1800.. (RAM?)
-GL_8A0          = $8a0      ; writes?
-GL_8A4          = $8a4      ; writes to $1802
-GL_8A5          = $8a5      ; writes to $1802, $180c, $180d, $180e..$1815
-
-GL_980          = $980      ; ,X; X = 0|13|...
 
 GL_STOP_C80     = $c80
 GL_START_CA0    = $ca0      ; allows write to $1000 or read from $1ff8
@@ -139,9 +156,9 @@ T1024T          = $0297
 ;-----------------------------------------------------------
 
 ram_80          = $80       ; always 1
-ram_81          = $81       ; X for GL_580,x (X = 2)
-ram_82          = $82       ; X for GL_880,x (X = 4)
-ram_83          = $83       ; X for GL_980,x (X = 13|0)
+slice1Bank      = $81       ; X for SL1_BX,x (X = 2)
+slice2Bank      = $82       ; X for SL2_BX,x (X = 4, ?)
+slice3Bank      = $83       ; X for SL3_BX,x (X = 13|0)
 ram_84          = $84
 ram_85          = $85
 ram_86          = $86
@@ -191,10 +208,10 @@ digit2          = digitLst+2
 dataPtr         = $ab   ;..$ac
 dataPtr2        = $ad   ;..$ae
 ram_AF          = $af
-ram_B0          = $b0
-ram_B1          = $b1
-ram_B2          = $b2
-ram_B3          = $b3
+ram_B3          = $b0
+ram_B0          = $b1
+ram_B1          = $b2
+ram_B2          = $b3
 ram_B4          = $b4
 ram_B5          = $b5
 ram_B6          = $b6
@@ -233,9 +250,9 @@ ram_D7          = $d7
 ram_D8          = $d8
 ram_D9          = $d9
 ram_DA          = $da
-ram_DB          = $db
-ram_DC          = $dc
-ram_DD          = $dd
+ram_DB          = $db   ; ????2222 ?, bank into slice 2
+ram_DC          = $dc   ; 00001111 -> banks into slices 0/1
+ram_DD          = $dd   ; 22223333 -> banks into slices 2/3
 ram_DE          = $de
 ram_DF          = $df
 ram_E0          = $e0
@@ -292,29 +309,29 @@ L100c
     txs                             ;2
     inx                             ;2
     bne     L100c                   ;2/3
-    ldx     #$01                    ;2
+    ldx     #$01                    ;2      ROM bank 0 into slice 0
     stx     ram_80                  ;3
-    inx                             ;2
-    stx     ram_81                  ;3
-    ldx     #$04                    ;2
-    stx     ram_82                  ;3
-    ldx     #$0d                    ;2
-    stx     ram_83                  ;3      pages? 1, 2, 4, d
-    lda     GL_980                  ;4      page 0 into $900?
-    lda     GL_884                  ;4      allow reading from L1800.. (page 4?)
+    inx                             ;2      ROM bank 1 into slice 1
+    stx     slice1Bank              ;3
+    ldx     #$04                    ;2      RAM bank 3 into slice 2 for reading
+    stx     slice2Bank              ;3
+    ldx     #$0d                    ;2      special bank into slice 3 for writing
+    stx     slice3Bank              ;3                      
+    lda     SL3_B3                  ;4      switch ROM bank 3 into slice 3
+    lda     SL2_R0                  ;4      switch RAM bank 0 into slice 2 for reading (L1800..)
     jsr     Check1800               ;6
     bne     Failed                  ;2/3
-    lda     GL_885                  ;4      allow reading from L1800.. (page 5?)
+    lda     SL2_R1                  ;4      switch RAM bank 1 into slice 2 for reading (L1800..)
     jsr     Check1800               ;6
     beq     .success                ;2/3
 Failed
-    lda     GL_8A4                  ;4      page 4 into $800 for writing
+    lda     SL2_W0                  ;4      switch RAM bank 0 into slice 2 for writing 
     ldx     #$00                    ;2
     stx     L1802                   ;4
-    lda     GL_8A5                  ;4      page 5 into $800 for writing
+    lda     SL2_W1                  ;4      switch RAM bank 1 into slice 2 for writing
     stx     L1802                   ;4
-    lda     #$00                    ;2
-    sta     ram_83                  ;3
+    lda     #$00                    ;2      ROM bank 3 into slice 3
+    sta     slice3Bank              ;3
     lda     #$ff                    ;2
     sta     ram_B6                  ;3
     lda     #<L1c00                 ;2
@@ -322,7 +339,7 @@ Failed
     jmp     L1106                   ;3   =  35
 
 .success
-    lda     GL_884                  ;4      page 4 into $800
+    lda     SL2_R0                  ;4      switch RAM bank 0 into slice 2 for reading
     lda     L1808                   ;4
     ldx     L1809                   ;4
     jmp     L1106                   ;3   =  15
@@ -402,13 +419,13 @@ L10c3
     rts                             ;6   =  12
 
 L10c9 SUBROUTINE
-    lda     GL_583                  ;4
+    lda     SL1_B2                  ;4                  switch ROM bank 2 into slice 1
     lda     #<L1400                 ;2
     ldx     #>L1400                 ;2
     jmp     SetDataPtr2             ;3   =  11
 
 L10d3 SUBROUTINE
-    lda     GL_885                  ;4
+    lda     SL2_R1                  ;4                  switch RAM bank 1 into slice 2 for reading (L1800..)
     lda     L1808                   ;4
     ldx     L1809                   ;4   =  12
 SetDataPtr2
@@ -417,12 +434,12 @@ SetDataPtr2
     jsr     L10f7                   ;6   =  12
 SetupBanks
     stx     ram_DE                  ;3
-    ldx     ram_81                  ;3          2?
-    lda     GL_580,x                ;4
-    ldx     ram_82                  ;3          4?
-    lda     GL_880,x                ;4
-    ldx     ram_83                  ;3          13|0?
-    lda     GL_980,x                ;4
+    ldx     slice1Bank              ;3          2?
+    lda     SL1_BX,x                ;4                  switch ROM/RAM bank X(1?) into slice 1
+    ldx     slice2Bank              ;3          4?
+    lda     SL2_BX,x                ;4                  switch ROM/RAM bank X(3,?) into slice 2
+    ldx     slice3Bank              ;3          13|0?
+    lda     SL3_BX,x                ;4                  switch ROM/RAM bank X(0,13?) into slice 3
     ldx     ram_DE                  ;3
     rts                             ;6   =  33
 
@@ -430,14 +447,14 @@ L10f7 SUBROUTINE
     jmp.ind (dataPtr2)              ;5   =   5
 
 L10fa SUBROUTINE
-    lda     GL_884                  ;4
+    lda     SL2_R0                  ;4                  switch RAM bank 0 into slice 2 for reading
     lda     L1806                   ;4
     ldx     L1807                   ;4
     jmp     SetDataPtr2             ;3   =  15
 
 L1106
-    sta     dataPtr                 ;3              L1808, L1c00
-    stx     dataPtr+1               ;3
+    sta     dataPtr                 ;3          L1c00, L1808
+    stx     dataPtr+1               ;3          83 = 0,
     jsr     SetupBanks              ;6
     lda     #$00                    ;2
     sta     ram_AF                  ;3
@@ -452,8 +469,8 @@ L1106
     sta     flashTimer              ;3   =  41
 L1123
     jsr     L12bf                   ;6
-    ldy     #$08                    ;2
-    lda     (dataPtr),y             ;5              $1c08 =$64, (L1810)
+    ldy     #$08                    ;2          Y = 8
+    lda     (dataPtr),y             ;5          $1c08 = $64, (L1810)
     sta     TIM64T                  ;4
     lda     ram_AF                  ;3
     beq     L1134                   ;2/3
@@ -469,37 +486,37 @@ L1134
     inx                             ;2
     stx     yDial                   ;3
     stx     xDial                   ;3
-    ldy     #$00                    ;2
-    lda     (dataPtr),y             ;5
+    ldy     #$00                    ;2          Y = 0
+    lda     (dataPtr),y             ;5          $1c00 = $c1; $1808 = 
     sta     ram_AF                  ;3
     jsr     XPosSprites             ;6
-    ldy     #$0a                    ;2
-    lda     (dataPtr),y             ;5
-    sta     ram_B0                  ;3
-    ldy     #$02                    ;2
-    lda     (dataPtr),y             ;5
+    ldy     #$0a                    ;2          Y = $a
+    lda     (dataPtr),y             ;5          $1c0a = $7f; $1812 = 
+    sta     ram_B3                  ;3
+    ldy     #$02                    ;2          Y = 2
+    lda     (dataPtr),y             ;5          $1c02 = $00; $180a = 
     beq     L1178                   ;2/3
     sta     ram_C6                  ;3
-    iny                             ;2
-    lda     (dataPtr),y             ;5
+    iny                             ;2          Y = 3
+    lda     (dataPtr),y             ;5          $1c03 = $00; $180b = 
     sta     jmpIdx                  ;3
-    iny                             ;2
-    lda     (dataPtr),y             ;5
+    iny                             ;2          Y = 4
+    lda     (dataPtr),y             ;5          $1c04 = $00; $180c = 
     sta     counter                 ;3
-    iny                             ;2
-    lda     (dataPtr),y             ;5
+    iny                             ;2          Y = 5
+    lda     (dataPtr),y             ;5          $1c05 = $00; $180d = 
     jsr     L131a                   ;6
-    sta     counter+1               ;3
-    lda     GL_580,x                ;4      X = (dataPtr),y/ 16
+    sta     counter+1               ;3          A = $10..$1f
+    lda     SL1_BX,x                ;4          X = (dataPtr),y/16
     lda     #$06                    ;2
     sta     pulseCount              ;3
     jsr     L10d3                   ;6   = 113
 L1178
-    ldy     #$0e                    ;2
-    lda     (dataPtr),y             ;5
+    ldy     #$0e                    ;2          Y = $e
+    lda     (dataPtr),y             ;5          $1c0e = $00
     tax                             ;2
-    iny                             ;2
-    lda     (dataPtr),y             ;5
+    iny                             ;2          Y = $f
+    lda     (dataPtr),y             ;5          $1c0f = $00
     beq     L118f                   ;2/3
     stx     ram_B4                  ;3
     jsr     L131a                   ;6
@@ -508,20 +525,20 @@ L1178
     lda     #$01                    ;2
     sta     ram_B7                  ;3   =  38
 L118f
-    ldy     #$10                    ;2
-    lda     (dataPtr),y             ;5
+    ldy     #$10                    ;2          Y = $10
+    lda     (dataPtr),y             ;5          $1c10 = $00
     tax                             ;2
-    iny                             ;2
-    lda     (dataPtr),y             ;5
+    iny                             ;2          Y = $11
+    lda     (dataPtr),y             ;5          $1c11 = $00
     beq     L11a0                   ;2/3
     sta     dataPtr2+1              ;3
     stx     dataPtr2                ;3
     jsr     L11b3                   ;6   =  30
 L11a0
-    ldy     #$01                    ;2
-    lda     (dataPtr),y             ;5
+    ldy     #$01                    ;2          Y = 1
+    lda     (dataPtr),y             ;5          $1c01 = $1e
     sta     ram_D2                  ;3
-    sta     ram_B1                  ;3
+    sta     ram_B0                  ;3
     jsr     WaitTim                 ;6
     lda     #$02                    ;2
     sta     TIM64T                  ;4
@@ -531,8 +548,8 @@ L11b3 SUBROUTINE
     jmp.ind (dataPtr2)              ;5   =   5
 
 L11b6
-    ldy     #$09                    ;2
-    lda     (dataPtr),y             ;5
+    ldy     #$09                    ;2          Y = 9
+    lda     (dataPtr),y             ;5          $1c09 = $89
     tax                             ;2
     jsr     WaitTim                 ;6
     stx     TIM64T                  ;4
@@ -543,9 +560,9 @@ L11b6
     sta     PF2                     ;3   =  31
 L11cb
     lda     #$00                    ;2
-    sta     ram_B3                  ;3
-    ldy     #$0b                    ;2
-    lda     (dataPtr),y             ;5
+    sta     ram_B2                  ;3
+    ldy     #$0b                    ;2          Y = $b
+    lda     (dataPtr),y             ;5          $1c0b = $10
     beq     L11d9                   ;2/3
     tax                             ;2
     jsr     WaitLines               ;6   =  22
@@ -572,7 +589,7 @@ L11f5 ;.loop?
     clc                             ;2
     adc     ram_8B                  ;3
     adc     #$02                    ;2
-    cmp     ram_B0                  ;3
+    cmp     ram_B3                  ;3
     bcs     L1271                   ;2/3
     sta     ram_8B                  ;3
     lda     ram_87                  ;3
@@ -588,7 +605,7 @@ L1210
     tax                             ;2
     clc                             ;2
     adc     ram_8B                  ;3
-    cmp     ram_B0                  ;3
+    cmp     ram_B3                  ;3
     bcs     L1271                   ;2/3
     sta     ram_8B                  ;3
     jsr     WaitLines               ;6
@@ -600,7 +617,7 @@ L1227
 L122a
     asl                             ;2
     bmi     L123c                   ;2/3
-    lda     GL_880                  ;4          map $1c00 into L1800?
+    lda     SL2_B3                  ;4          switch ROM bank 3 into slice 2
     jsr     DrawDialPad             ;6
     jsr     SetupBanks              ;6
     jsr     XPosSprites             ;6
@@ -625,7 +642,7 @@ L123c
     bne     .loop                   ;2/3
     jsr     L131a                   ;6
     sta     ram_9A                  ;3
-    lda     GL_980,x                ;4      X = (dataPtr2),y / 16
+    lda     SL3_BX,x                ;4      X = (dataPtr2),y / 16
     jmp     L11f5                   ;3   =  32
 
 L1261
@@ -639,7 +656,7 @@ L126a
 
 L126d
     lda     #$ff                    ;2
-    sta     ram_B2                  ;3   =   5
+    sta     ram_B1                  ;3   =   5
 L1271
     jsr     WaitTim                 ;6
     lda     #$00                    ;2
@@ -722,7 +739,7 @@ L12f7
     jsr     L10b3                   ;6
     ldx     ram_B6                  ;3
     bmi     L1304                   ;2/3!
-    lda     GL_980,x                ;4
+    lda     SL3_BX,x                ;4
     jsr     L10fa                   ;6   =  21
 L1304
     jsr     WaitTim                 ;6
@@ -763,11 +780,11 @@ L1326 SUBROUTINE
     lda     (dataPtr),y             ;5
     bmi     .loop                   ;2/3
     beq     .loop                   ;2/3
-    lda     ram_B3                  ;3
+    lda     ram_B2                  ;3
     bne     .loop                   ;2/3
-    ldy     ram_B1                  ;3
+    ldy     ram_B0                  ;3
     sty     ram_84                  ;3
-    sty     ram_B3                  ;3   =  28
+    sty     ram_B2                  ;3   =  28
 .loop
     lda     (dataPtr),y             ;5
     sta     ram_85,x                ;4
@@ -777,7 +794,7 @@ L1326 SUBROUTINE
     bne     .loop                   ;2/3
     lda     ram_84                  ;3
     sty     ram_84                  ;3
-    sty     ram_B2                  ;3
+    sty     ram_B1                  ;3
     tay                             ;2
     rts                             ;6   =  34
 
@@ -809,15 +826,15 @@ L135a
     bne     L137a                   ;2/3
     sty     dialType                ;3   =  46  Y = $ff
 L137a
-    lda     GL_885                  ;4
+    lda     SL2_R1                  ;4          switch RAM bank 1 into slice 2 for reading (L1800..)
     lda     L1802                   ;4
     bne     L1392                   ;2/3
-    lda     GL_8A5                  ;4
+    lda     SL2_W1                  ;4          switch RAM bank 1 into slice 2 for writing (L1800..)
     lda     dialType                ;3          backup BF and speed
     sta     L180c                   ;4
     lda     dialSpeed               ;3
     sta     L180d                   ;4
-    lda     GL_885                  ;4   =  32
+    lda     SL2_R1                  ;4   =  32  switch RAM bank 1 into slice 2 for reading (L1800..)
 L1392
     rts                             ;6   =   6
 
@@ -980,7 +997,7 @@ CallingGfx
     .byte   %00000000 ; |        |            $146c (G)
 
 L146d SUBROUTINE
-    lda     GL_885                  ;4
+    lda     SL2_R1                  ;4          switch RAM bank 1 into slice 2 for reading (L1800..)
     lda     L180c                   ;4          restore BF and speed
     sta     dialType                ;3
     lda     L180d                   ;4
@@ -1433,17 +1450,17 @@ L172f
     sty     ram_D2                  ;3
     cpy     #$32                    ;2
     bmi     .exitDir                ;2/3
-    lda     ram_B2                  ;3
+    lda     ram_B1                  ;3
     sec                             ;2
     sbc     ram_D2                  ;3
     cmp     #$0c                    ;2
     beq     L1745                   ;2/3
     bpl     .exitDir                ;2/3 =  29
 L1745
-    ldy     ram_B1                  ;3
+    ldy     ram_B0                  ;3
     jsr     L17a3                   ;6
     bcc     .exitDir                ;2/3
-    sty     ram_B1                  ;3
+    sty     ram_B0                  ;3
     rts                             ;6   =  20
 
 .joyUp
@@ -1465,13 +1482,13 @@ L1762
     sty     ram_D2                  ;3
     tya                             ;2
     sec                             ;2
-    sbc     ram_B1                  ;3
+    sbc     ram_B0                  ;3
     cmp     #$06                    ;2
     bne     .exitDir                ;2/3
-    ldy     ram_B1                  ;3
+    ldy     ram_B0                  ;3
     jsr     L17b4                   ;6
     bcc     .exitDir                ;2/3
-    sty     ram_B1                  ;3
+    sty     ram_B0                  ;3
     rts                             ;6   =  42
 
 .joyRight
@@ -1691,12 +1708,12 @@ L148c SUBROUTINE
 .outerLoop
     lda     ram_D7                  ;3         
     bne     L149e                   ;2/3       
-    lda     GL_480                  ;4              switch bank 3 into slice 0
+    lda     SL0_B3                  ;4              switch ROM bank 3 into slice 0
     jsr     L12f1                   ;6   =  15      code in bank 3
 L149e
-    lda     GL_485                  ;4              switch bank ? into slice 0
+    lda     SL0_R1                  ;4              switch RAM bank 1 into slice 0 for reading (executing?)
     jsr     $100f                   ;6              code in bank ? TODO!
-    ldx     GL_481                  ;4              switch bank ? into slice 0
+    ldx     SL0_B0                  ;4              switch ROM bank 0 into slice 0
     bcs     L14af                   ;2/3       
     jsr     L16c0                   ;6         
     jmp     L149e                   ;3   =  25 
@@ -1733,63 +1750,65 @@ SendCRC SUBROUTINE
     
 L14e0 SUBROUTINE
     lda     GL_START_PULSE          ;4         
-    jsr     L14fd                   ;6         
-    bcc     .exit                   ;2/3       
+    jsr     Wait4High               ;6         
+    bcc     .found                  ;2/3       
     lda     ram_C7                  ;3         
     sec                             ;2         
     sbc     #$04                    ;2         
     sta     ram_C7                  ;3   =  22 
-.exit
+.found
     rts                             ;6   =   6 
     
 L14f0 SUBROUTINE
-    jsr     L1501                   ;6         
+    jsr     Wait4Low                ;6         
     lda     GL_CBB                  ;4         
-    jsr     L1533                   ;6         
-    jsr     L1533                   ;6         
+    jsr     Wait100ms               ;6         
+    jsr     Wait100ms               ;6         
     rts                             ;6   =  28 
     
-L14fd SUBROUTINE
+Wait4High SUBROUTINE
+; waits ~56 seconds
     ldy     #$00                    ;2         
     beq     L1503                   ;3 =     5
 
-L1501 SUBROUTINE
+Wait4Low SUBROUTINE
+; waits ~11 seconds
     ldy     #$01                    ;2   =   2 
 L1503
-    lda     #$32                    ;2         
+    lda     #50                     ;2         
     sta     ram_DE                  ;3         
-    ldx     L152f,y                 ;4   =   9 
-L150a
-    lda     #$ff                    ;2         
+    ldx     L152f,y                 ;4   =   9  0|50
+.retry
+    lda     #$ff                    ;2          -> ~219ms
     sta     T1024T                  ;4   =   6 
-L150f
+.loopWait
     lda     TIM8T                   ;4         
-    bmi     L1524                   ;2/3       
-    lda     L1ff8                   ;4         
+    bmi     .waitDone               ;2/3       
+    lda     L1ff8                   ;4          check signal in bit 6
     and     #$40                    ;2         
-    eor     L1531,y                 ;4         
-    beq     L152a                   ;2/3       
-    ldx     L152f,y                 ;4         
-    jmp     L150f                   ;3   =  25 
+    eor     L1531,y                 ;4          $40|$00   
+    beq     .signalFound            ;2/3       
+    ldx     L152f,y                 ;4          0|50
+    jmp     .loopWait               ;3   =  25 
     
-L1524
+.waitDone
     dec     ram_DE                  ;5         
-    bne     L150a                   ;2/3       
+    bne     .retry                  ;2/3       
     sec                             ;2         
     rts                             ;6   =  15 
     
-L152a
+.signalFound
     dex                             ;2         
-    bne     L150f                   ;2/3       
+    bne     .loopWait               ;2/3       
     clc                             ;2         
     rts                             ;6   =  12 
     
 L152f
-    .byte   $00,$32                         ; $152f (D)
+    .byte   0,50                            ; $152f (D)
 L1531
     .byte   $40,$00                         ; $1531 (D)
     
-L1533 SUBROUTINE
+Wait100ms SUBROUTINE
     pha                             ;3         
     lda     #$75                    ;2         
     sta     T1024T                  ;4   =   9 
@@ -2069,9 +2088,9 @@ L16f8
     lda     ram_DB                  ;3         
     and     #$0f                    ;2         
     tax                             ;2         
-    lda     GL_8A0,x                ;4         
+    lda     SL2_WX,x                ;4         
     lda     ram_DD                  ;3         
-    eor     #>L1800                 ;2         
+    eor     #$18                    ;2         
     sta     dataPtr2+1              ;3         
     lda     ram_DC                  ;3         
     sta     dataPtr2                ;3         
@@ -2112,9 +2131,9 @@ L1747
 L1750
     lsr     ram_D9                  ;5         
     bcs     L175d                   ;2/3       
-    lda     GL_480                  ;4              switch bank 3 into slice 0?
+    lda     SL0_B3                  ;4              switch ROM bank 3 into slice 0
     jsr     L12d0                   ;6              code in bank 3
-    lda     GL_481                  ;4   =  21      switch bank ? into slice 0?
+    lda     SL0_B0                  ;4   =  21      switch ROM bank 0 into slice 0
 L175d
     lsr     ram_D9                  ;5         
     bcs     L1791                   ;2/3       
@@ -2123,15 +2142,15 @@ L175d
     lda     ram_DC                  ;3         
     jsr     Div16                   ;6         
     tax                             ;2         
-    lda     GL_480,x                ;4         
+    lda     SL0_BX,x                ;4              
     lda     ram_DD                  ;3         
     jsr     Div16                   ;6         
     tax                             ;2         
-    lda     GL_880,x                ;4         
+    lda     SL2_BX,x                ;4         
     lda     ram_DD                  ;3         
     and     #$0f                    ;2         
     tax                             ;2         
-    lda     GL_980,x                ;4         
+    lda     SL3_BX,x                ;4         
     ldx     #$06                    ;2   =  57 
 L1781
     lda     RamCode,x               ;4         
@@ -2155,15 +2174,15 @@ L179c SUBROUTINE
 
 L179f
     jsr     L17b4                   ;6         
-    stx     ram_82                  ;3         
+    stx     slice2Bank              ;3         
     ldx     #$ff                    ;2         
     txs                             ;2         
-    lda     ram_DC                  ;3         
-    ldx     ram_DD                  ;3         
+    lda     ram_DC                  ;3              -> dataPtr
+    ldx     ram_DD                  ;3              -> dataPtr+1
     jmp     (L1003)                 ;5   =  24      -> L1106?
 
 RamCode 
-    lda     GL_580,x                ;4         
+    lda     SL1_BX,x                ;4         
     jmp     (L1ffc)                 ;5   =   9 
 
 L17b4 SUBROUTINE
@@ -2173,7 +2192,7 @@ L17b4 SUBROUTINE
     lda     ram_DD                  ;3         
     eor     #$18                    ;2         
     sta     ram_DD                  ;3         
-    lda     GL_880,x                ;4         
+    lda     SL2_BX,x                ;4         
     rts                             ;6   =  25 
     
 Div16 SUBROUTINE
@@ -2224,12 +2243,12 @@ SendByte SUBROUTINE
     RORG    $1c00                           ;               code for slice 3/3
 
 L1c00
-    .word   $1ec1                           ; $1c00 (D) ram_AF, ram_D2+ram_B1
+    .word   $1ec1                           ; $1c00 (D) ram_AF, ram_D2+ram_B0
     .byte   $00,$00,$00,$00                 ; $1c02 (D) ram_C6, jmpIdx, counter, counter+1
     .word   MessagePtrs                     ; $1c06
     .byte   $64                             ; $1c08 -> TIM64T
     .byte   $89                             ; $1c09 -> TIM64T
-    .byte   $7f                             ; $1c0a -> ram_B0
+    .byte   $7f                             ; $1c0a -> ram_B3
     .byte   $0a                             ; $1c0b -> WaitLines
     .word   L1c75
     .byte   $00,$00,$00                     ; $1c0e (D)    ? ? dataPtr2
@@ -2330,7 +2349,7 @@ L1c75 SUBROUTINE
     rts                             ;6   =  10
 
 L1c7a
-    ldy     GL_8A5                  ;4
+    ldy     SL2_W1                  ;4              switch RAM bank 1 into slice 2 for writing (L1800..)
     ldx     #$00                    ;2   =   6
 .loop
     lda     L1c9a,x                 ;4
@@ -2347,8 +2366,8 @@ L1c7a
     jmp     L13a3                   ;3   =  37
 
 L1c9a
-    .byte   $63,$6c                 ;       L180e
-    .word   L1403                   ;       L1810   -> LoadData
+    .byte   $63                     ;       L180e
+    jmp     (L1403)                 ;       L180f   -> LoadData (called via jmp $100f)
     .word   PhoneNum                ;       L1812
     .word   $ffff                   ;       L1814   seems to be used
 
@@ -2396,7 +2415,7 @@ L1ca6
 
 ;===============================================================================
 
-    RORG . - $400                   ;           code for slice 2/3
+    RORG . - $400                   ;           code for slice 2
     
 XPosSprite0 SUBROUTINE
     sta     WSYNC                   ;3   =  23
@@ -2768,7 +2787,7 @@ L12dc
     sta     PF1                     ;3
     sta     PF2                     ;3
     stx     AUDF0                   ;3
-    jsr     L1533                   ;6
+    jsr     Wait100ms               ;6
     cmp     #$00                    ;2
     beq     L12ee                   ;2/3
     dex                             ;2
@@ -2783,7 +2802,7 @@ L12f1
     jsr     L14b9                   ;6
     lda     #$20                    ;2
     jsr     SendByte                ;6
-    lda     GL_885                  ;4
+    lda     SL2_R1                  ;4          switch RAM bank 1 into slice 2 for reading (L1800..)
     lda     L1802                   ;4
     bne     L1309                   ;2/3
     lda     #<L1308                 ;2
@@ -2857,8 +2876,8 @@ CheckSum SUBROUTINE
     stx     crcHi                   ;3
     lda     GL_STOP_PULSE           ;4   =   9  
 L1f8f
-    lda     L1fc0,x                 ;4          ..$1fdf
-    eor     crcHi                   ;3
+    lda     L1fc0,x                 ;4          ..$1fdf, most likely NOT from ROM or RAM
+    eor     crcHi                   ;3          
     sta     crcHi                   ;3
     asl                             ;2
     rol     crcHi                   ;5
@@ -2881,11 +2900,11 @@ L1f8f
     jmp     .error                  ;3   =   8
 
 L1fb0 SUBROUTINE
-    lda     GL_START_CA0            ;4          page 0 into $c00 for writing
+    lda     GL_START_CA0            ;4          switch something on (allow writing?)
     sty     L1000                   ;4
     lda     L1ff8                   ;4
     and     #$03                    ;2
-    ldy     GL_STOP_C80             ;4          page 0 into $c00?
+    ldy     GL_STOP_C80             ;4          ...and off again? (stop writing?)
     rts                             ;6   =  24
 
 Start SUBROUTINE
@@ -2902,7 +2921,7 @@ L1fc0
     dey                             ;2
     bne     .loop                   ;2/3
     ldx     #$05                    ;2
-    lda     GL_4AD                  ;4   =  16  page 13 into $400 for writing
+    lda     SL0_WD                  ;4   =  16  switch RAM bank ? (PROM?) into slice 0 for writing
 L1fd2
     ldy     #$02                    ;2
     jsr     L1fb0                   ;6
@@ -2922,15 +2941,15 @@ L1fda = . - 1
     bne     L1fea                   ;2/3 =  14
   ENDIF
 L1fe4
-    lda     GL_680                  ;4          page 0 into $600?
+    lda     GL_680                  ;4          
     dex                             ;2
     bne     L1fd2                   ;2/3 =   8
 L1fea
-    lda     GL_680                  ;4          page 0 into $600? 
-    jsr     CheckSum                ;6          -> $c80
-    lda     GL_481                  ;4          switch bank ? into slice 0?
-    lda     GL_582                  ;4          page 2 into $500? page 2 into slice 2?
-    lda     GL_884                  ;4          page 4 into $800?
+    lda     GL_680                  ;4          
+    jsr     CheckSum                ;6          -> GL_STOP_C80
+    lda     SL0_B0                  ;4          switch ROM bank 0 into slice 0
+    lda     SL1_B1                  ;4          switch ROM bank 1 into slice 1
+    lda     SL2_R0                  ;4          switch RAM bank 0 into slice 2 for reading
 L1ff8 = . - 1
     jmp     L1000                   ;3   =   6
 
