@@ -34,7 +34,10 @@ ORIGINAL        = 1         ; 1 = compile 100% identical to dump
 ;===============================================================================
 
 ;GameLine registers:
+
+GL_480          = $480      ; switch bank 3 into slice 0
 GL_481          = $481
+GL_485          = $485      ; switch bank ? into slice 0
 GL_4AD          = $4ad      ; allows write to $1000?
 
 GL_580          = $580      ; ,X; X = 1|2|4|variable
@@ -43,10 +46,10 @@ GL_583          = $583
 
 GL_680          = $680
 
-GL_850          = $850    
 GL_880          = $880      ; also ,X; X = 4  ($880 = map $1c00 ROM into $1800?)
 GL_884          = $884
 GL_885          = $885      ; allow reading from $1800.. (RAM?)
+GL_8A0          = $8a0      ; writes?
 GL_8A4          = $8a4      ; writes to $1802
 GL_8A5          = $8a5      ; writes to $1802, $180c, $180d, $180e..$1815
 
@@ -56,6 +59,8 @@ GL_STOP_C80     = $c80
 GL_START_CA0    = $ca0      ; allows write to $1000 or read from $1ff8
 GL_STOP_PULSE   = $cb0      ; could be...
 GL_START_PULSE  = $cb8      ; ... vice versa
+GL_CBA          = $cba      ; bit transfer (clear)
+GL_CBB          = $cbb      ; bit transfer (set)
 
 GL_SEND_TONE    = $d80      ; also ,Y; Y = $10..$1a
 
@@ -162,6 +167,8 @@ ram_98          = ptrLst+9
 ram_99          = ptrLst+10
 ram_9A          = ptrLst+11
 ;---------------------------------------
+ramCode          = ptrLst
+
 flashTimer      = $9b
 flashState      = $9c
 yDial           = $9d
@@ -208,8 +215,9 @@ ram_C6          = $c6   ; never read, written once?
 ram_C7          = $c7
 ram_C8          = $c8
 ram_C9          = $c9
-ram_CA          = $ca   ; temp. var
-ram_CB          = $cb
+crcLst          = $ca   ; ..$cb
+crcHi           = crcLst
+crcLo           = crcLst+1
 ram_CC          = $cc
 ram_CD          = $cd
 ram_CE          = $ce
@@ -218,9 +226,9 @@ ram_D0          = $d0   ; increased once (hi)
 ram_D1          = $d1   ; increased once (low)
 ram_D2          = $d2
 ram_D3          = $d3
-ram_D4          = $d4   ; always 0?
-ram_D5          = $d5
-ram_D6          = $d6
+animState       = $d4   
+animDelay       = $d5
+xCurtain        = $d6
 ram_D7          = $d7
 ram_D8          = $d8
 ram_D9          = $d9
@@ -377,13 +385,13 @@ L10c9 SUBROUTINE
     lda     GL_583                  ;4
     lda     #<L1400                 ;2
     ldx     #>L1400                 ;2
-    jmp     L10dc                   ;3   =  11
+    jmp     SetDataPtr2             ;3   =  11
 
 L10d3 SUBROUTINE
     lda     GL_885                  ;4
     lda     $1808                   ;4
     ldx     $1809                   ;4   =  12
-L10dc
+SetDataPtr2
     sta     dataPtr2                ;3
     stx     dataPtr2+1              ;3
     jsr     L10f7                   ;6   =  12
@@ -405,10 +413,10 @@ L10fa SUBROUTINE
     lda     GL_884                  ;4
     lda     $1806                   ;4
     ldx     $1807                   ;4
-    jmp     L10dc                   ;3   =  15
+    jmp     SetDataPtr2             ;3   =  15
 
 L1106
-    sta     dataPtr                 ;3
+    sta     dataPtr                 ;3              $1808, L1c00
     stx     dataPtr+1               ;3
     jsr     SetupBanks              ;6
     lda     #$00                    ;2
@@ -635,7 +643,7 @@ L1271
     sta     dataPtr2+1              ;3
     jsr     L11b3                   ;6   =  32
 L1299
-    lda     ram_D4                  ;3
+    lda     animState               ;3
     bne     L12a3                   ;2/3
     inc     ram_D1                  ;5
     bne     L12a3                   ;2/3
@@ -857,8 +865,7 @@ L13d7
 
 ;###############################################################################
 
-    ORG     $1400
-    RORG    $1400
+;    RORG    $1400
 
 L1400 SUBROUTINE
     lda     ram_8E                  ;3
@@ -1006,7 +1013,7 @@ L14af
     sta     numberIdx               ;3   =   8
 .loop
     ldx     ram_BE                  ;3
-    lda     $1812,x                 ;4          $15f6(|$ffff?)
+    lda     $1812,x                 ;4          PhoneNum(|$ffff?)
     sta     numberPtr               ;3
     lda     $1813,x                 ;4
     sta     numberPtr+1             ;3
@@ -1194,8 +1201,8 @@ L15f1 SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 
 ;.loop?
     rts                             ;6   =  11  return from CheckBit6
 
-L15f6
-    .byte   $0d,$08,$00,$00,$03,$06,$08,$01 ; $15f6 (D) 8003681242
+PhoneNum
+    .byte   $0d,$08,$00,$00,$03,$06,$08,$01 ; PhoneNum (D) 8003681242
     .byte   $02,$04,$02,$0f,$00,$00         ; $15fe (D)
 JmpTbl
     .word   DialNumber, L156b, L157c, L1591 ; $1604 (D)
@@ -1278,7 +1285,7 @@ L167d
     sta     ram_D3                  ;3
     stx     ram_D2                  ;3
     lda     #$00                    ;2
-    sta     ram_D4                  ;3
+    sta     animState               ;3
     jmp     L139a                   ;3   =  14
 
 L1688
@@ -1647,7 +1654,7 @@ $1813
     .byte   $fd,$2f,$97,$38,$18,$0a,$13,$5d ; $1a0d (D)
     .byte   $9e,$af,$d3,$39,$36,$39,$09,$d2 ; $1a15 (D)
     .byte   $3d,$ef,$d8                     ; $1a1d (D)
-L1a20
+WaitTbl
     .byte   $aa,$27,$20,$81,$1f,$fa,$bc,$f4 ; $1a20 (D)
     .byte   $fc,$00,$84,$b7,$f8,$0d,$f6,$5f ; $1a28 (D)
     .byte   $00,$40,$50,$2c,$f3,$fd,$fb,$5d ; $1a30 (D)
@@ -1713,8 +1720,7 @@ L1a20
 
 ;###############################################################################
 
-    ORG     $1c00
-    RORG    $1c00
+    RORG    $1c00                           ;               code for slice 3/3
 
 L1c00
     .word   $1ec1                           ; $1c00 (D) ram_AF, ram_D2+ram_B1
@@ -1840,8 +1846,10 @@ L1c7a
     jmp     L13a3                   ;3   =  37
 
 L1c9a
-    .byte   $63,$6c,$03,$14
-    .word   L15f6,$ffff             ; $1c9a (D)
+    .byte   $63,$6c                 ;       $180e
+    .word   L1403                   ;       $1810   -> LoadData
+    .word   PhoneNum                ;       $1812
+    .word   $ffff                   ;       $1814   seems to be used
 
 Check1800 SUBROUTINE
     ldx     #$03                    ;2
@@ -1874,25 +1882,28 @@ L1ca6
     ldx     $1801                   ;4
     cpx     dataPtr2+1              ;3
     bne     .loop                   ;2/3
-;  IF ORIGINAL
+  IF ORIGINAL
     cmp     (dataPtr2),y            ;5   =  23
-;  ELSE
-;    lda     #0
-;  ENDIF
+  ELSE
+    lda     #0
+  ENDIF
 .failed
     rts                             ;6   =   6
 
     .byte   $04,$11,$6c,$33,$fd,$20,$31,$10 ; $1cd2 (D)
     .byte   $c9,$ba,$f0,$de,$c9,$e0         ; $1cda (D)
 
-    SUBROUTINE
-XPosSprite0 = $18e0
+;===============================================================================
+
+    RORG . - $400                   ;           code for slice 2/3
+    
+XPosSprite0 SUBROUTINE
     sta     WSYNC                   ;3   =  23
 ;---------------------------------------
     ldx     #$07                    ;2   =   2
-L1ce4
+L18e4
     dex                             ;2
-    bne     L1ce4                   ;2/3
+    bne     L18e4                   ;2/3
     nop                             ;2
     sta     RESP0                   ;3
     sta     WSYNC                   ;3   =  12
@@ -1905,8 +1916,8 @@ L1ce4
     sta     VDELP1                  ;3
     rts                             ;6   =  22
 
-    SUBROUTINE
-.loop ;$18f9?
+DDD SUBROUTINE
+.loop 
     nop                             ;2
     lda     (ram_91),y              ;5
     and     ram_96|$100             ;4      = $ff       flash
@@ -1916,12 +1927,12 @@ L1ce4
     and     ram_97|$100             ;4      = $ff
     eor     ram_9A|$100             ;4      = $00|$ff
     stx     GRP0                    ;3
-    jmp     .cont                   ;3   =  36
+    jmp     .cont                   ;3   =  36          weird!?
 
-.cont = $1910
+.cont
     sta     GRP0                    ;3
     inc     ram_86                  ;5
-DrawDialDigits = $1914
+DrawDialDigits
     ldy     ram_86                  ;3
     lda     (ram_8F),y              ;5
     and     ram_95|$100             ;4      = $ff
@@ -1934,9 +1945,8 @@ DrawDialDigits = $1914
     lda     #$00                    ;2
     sta     GRP0                    ;3
     rts                             ;6   =  23
-
-    SUBROUTINE
-DrawDialPad = . - $400
+    
+DrawDialPad SUBROUTINE
     lda     ram_86                  ;3
     sta     COLUPF                  ;3
     lda     ram_87                  ;3
@@ -1999,9 +2009,8 @@ DrawDialPad = . - $400
 ;---------------------------------------
     sta     PF2                     ;3
     rts                             ;6   =   9
-
-    SUBROUTINE
-L19a7 = . - $400
+    
+L19a7 SUBROUTINE
     jsr     ClearFlash              ;6
     cpy     yDial                   ;3
     bne     .exit                   ;2/3
@@ -2010,7 +2019,7 @@ L19a7 = . - $400
 .exit
     rts                             ;6   =   6
 
-FlashCurrentDigit = . - $400
+FlashCurrentDigit ;SUBROUTINE
     jsr     ClearFlash              ;6
     ldx     numDigits               ;3
     cpx     #$03                    ;2
@@ -2026,7 +2035,7 @@ FlashCurrentDigit = . - $400
     sta     flashTimer              ;3
     rts                             ;6   =  46
 
-ClearFlash = . - $400
+ClearFlash SUBROUTINE
     ldx     #$ff                    ;2
     stx     ram_95                  ;3
     stx     ram_96                  ;3
@@ -2036,9 +2045,8 @@ ClearFlash = . - $400
     stx     ram_99                  ;3
     stx     ram_9A                  ;3
     rts                             ;6   =  28
-
-    SUBROUTINE
-SetupBottomDigits = . - $400
+        
+SetupBottomDigits SUBROUTINE
     lda     #<BlockGfx              ;2
     sta     ram_8F                  ;3
     sta     ram_91                  ;3
@@ -2050,7 +2058,7 @@ SetupBottomDigits = . - $400
     ldx     #0                      ;2
     lda     ram_A0                  ;3
     beq     .drawBlocks             ;2/3!
-.loop = . - $400
+.loop
     cpx     numDigits               ;3
     bpl     .drawBlocks             ;2/3!
     ldy     digitLst,x              ;4
@@ -2072,228 +2080,233 @@ SetupBottomDigits = . - $400
     jmp     .loop                   ;3   =  61
 
 .drawBlocks
-    lda     L1a20,x                 ;4
+    lda     WaitTbl,x               ;4
     beq     .exitWait               ;2/3
     tax                             ;2
     jsr     WaitLines               ;6   =  14
 .exitWait
     rts                             ;6   =   6
 
-L1a20 = . - $400
-    .byte   $02,$02,$01,$00                 ; $1e20 (D)
-DigitGfx = . - $400;?
-DigitCol0 = . - $400
-OneGfx = . - $400
-    .byte   %00000000 ; |        |            $1e24 (G)
-    .byte   %00001000 ; |    #   |            $1e25 (G)
-    .byte   %00011000 ; |   ##   |            $1e26 (G)
-    .byte   %00001000 ; |    #   |            $1e27 (G)
-    .byte   %00001000 ; |    #   |            $1e28 (G)
-    .byte   %00001000 ; |    #   |            $1e29 (G)
-    .byte   %00001000 ; |    #   |            $1e2a (G)
-    .byte   %00001000 ; |    #   |            $1e2b (G)
-    .byte   %00001000 ; |    #   |            $1e2c (G)
-    .byte   %00011100 ; |   ###  |            $1e2d (G)
-    .byte   %00000000 ; |        |            $1e2e (G)
-DIGIT_H = . - $400 - OneGfx
-FourGfx = . - $400
-    .byte   %00000000 ; |        |            $1e2f (G)
-    .byte   %00101000 ; |  # #   |            $1e30 (G)
-    .byte   %00101000 ; |  # #   |            $1e31 (G)
-    .byte   %00101000 ; |  # #   |            $1e32 (G)
-    .byte   %00101000 ; |  # #   |            $1e33 (G)
-    .byte   %00101000 ; |  # #   |            $1e34 (G)
-    .byte   %00111100 ; |  ####  |            $1e35 (G)
-    .byte   %00001000 ; |    #   |            $1e36 (G)
-    .byte   %00001000 ; |    #   |            $1e37 (G)
-    .byte   %00001000 ; |    #   |            $1e38 (G)
-    .byte   %00000000 ; |        |            $1e39 (G)
-    .byte   %00000000 ; |        |            $1e3a (G)
-    .byte   %00111100 ; |  ####  |            $1e3b (G)
-    .byte   %00000100 ; |     #  |            $1e3c (G)
-    .byte   %00000100 ; |     #  |            $1e3d (G)
-    .byte   %00000100 ; |     #  |            $1e3e (G)
-    .byte   %00001000 ; |    #   |            $1e3f (G)
-    .byte   %00001000 ; |    #   |            $1e40 (G)
-    .byte   %00010000 ; |   #    |            $1e41 (G)
-    .byte   %00010000 ; |   #    |            $1e42 (G)
-    .byte   %00010000 ; |   #    |            $1e43 (G)
-    .byte   %00000000 ; |        |            $1e44 (G)
-    .byte   %00000000 ; |        |            $1e45 (G)
-    .byte   %00000000 ; |        |            $1e46 (G)
-    .byte   %01000010 ; | #    # |            $1e47 (G)
-    .byte   %00100100 ; |  #  #  |            $1e48 (G)
-    .byte   %00011000 ; |   ##   |            $1e49 (G)
-    .byte   %01111110 ; | ###### |            $1e4a (G)
-    .byte   %00011000 ; |   ##   |            $1e4b (G)
-    .byte   %00100100 ; |  #  #  |            $1e4c (G)
-    .byte   %01000010 ; | #    # |            $1e4d (G)
-    .byte   %00000000 ; |        |            $1e4e (G)
-    .byte   %00000000 ; |        |            $1e4f (G)
-DigitCol1 = . - $400
-TwoGfx = . - $400
-    .byte   %00000000 ; |        |            $1e50 (G)
-    .byte   %00011000 ; |   ##   |            $1e51 (G)
-    .byte   %00100100 ; |  #  #  |            $1e52 (G)
-    .byte   %00000100 ; |     #  |            $1e53 (G)
-    .byte   %00000100 ; |     #  |            $1e54 (G)
-    .byte   %00001000 ; |    #   |            $1e55 (G)
-    .byte   %00010000 ; |   #    |            $1e56 (G)
-    .byte   %00100000 ; |  #     |            $1e57 (G)
-    .byte   %00100000 ; |  #     |            $1e58 (G)
-    .byte   %00111100 ; |  ####  |            $1e59 (G)
-    .byte   %00000000 ; |        |            $1e5a (G)
-    .byte   %00000000 ; |        |            $1e5b (G)
-    .byte   %00111100 ; |  ####  |            $1e5c (G)
-    .byte   %00100000 ; |  #     |            $1e5d (G)
-    .byte   %00100000 ; |  #     |            $1e5e (G)
-    .byte   %00111000 ; |  ###   |            $1e5f (G)
-    .byte   %00100100 ; |  #  #  |            $1e60 (G)
-    .byte   %00000100 ; |     #  |            $1e61 (G)
-    .byte   %00000100 ; |     #  |            $1e62 (G)
-    .byte   %00100100 ; |  #  #  |            $1e63 (G)
-    .byte   %00011000 ; |   ##   |            $1e64 (G)
-    .byte   %00000000 ; |        |            $1e65 (G)
-    .byte   %00000000 ; |        |            $1e66 (G)
-    .byte   %00011000 ; |   ##   |            $1e67 (G)
-    .byte   %00100100 ; |  #  #  |            $1e68 (G)
-    .byte   %00100100 ; |  #  #  |            $1e69 (G)
-    .byte   %00100100 ; |  #  #  |            $1e6a (G)
-    .byte   %00011000 ; |   ##   |            $1e6b (G)
-    .byte   %00100100 ; |  #  #  |            $1e6c (G)
-    .byte   %00100100 ; |  #  #  |            $1e6d (G)
-    .byte   %00100100 ; |  #  #  |            $1e6e (G)
-    .byte   %00011000 ; |   ##   |            $1e6f (G)
-    .byte   %00000000 ; |        |            $1e70 (G)
-    .byte   %00000000 ; |        |            $1e71 (G)
-    .byte   %00011000 ; |   ##   |            $1e72 (G)
-    .byte   %00100100 ; |  #  #  |            $1e73 (G)
-    .byte   %00100100 ; |  #  #  |            $1e74 (G)
-    .byte   %00100100 ; |  #  #  |            $1e75 (G)
-    .byte   %00100100 ; |  #  #  |            $1e76 (G)
-    .byte   %00100100 ; |  #  #  |            $1e77 (G)
-    .byte   %00100100 ; |  #  #  |            $1e78 (G)
-    .byte   %00100100 ; |  #  #  |            $1e79 (G)
-    .byte   %00011000 ; |   ##   |            $1e7a (G)
-    .byte   %00000000 ; |        |            $1e7b (G)
-DigitCol2 = . - $400
-ThreeGfx = . - $400
-    .byte   %00000000 ; |        |            $1e7c (G)
-    .byte   %00011000 ; |   ##   |            $1e7d (G)
-    .byte   %00100100 ; |  #  #  |            $1e7e (G)
-    .byte   %00000100 ; |     #  |            $1e7f (G)
-    .byte   %00000100 ; |     #  |            $1e80 (G)
-    .byte   %00011000 ; |   ##   |            $1e81 (G)
-    .byte   %00000100 ; |     #  |            $1e82 (G)
-    .byte   %00000100 ; |     #  |            $1e83 (G)
-    .byte   %00100100 ; |  #  #  |            $1e84 (G)
-    .byte   %00011000 ; |   ##   |            $1e85 (G)
-    .byte   %00000000 ; |        |            $1e86 (G)
-    .byte   %00000000 ; |        |            $1e87 (G)
-    .byte   %00011000 ; |   ##   |            $1e88 (G)
-    .byte   %00100100 ; |  #  #  |            $1e89 (G)
-    .byte   %00100000 ; |  #     |            $1e8a (G)
-    .byte   %00100000 ; |  #     |            $1e8b (G)
-    .byte   %00111000 ; |  ###   |            $1e8c (G)
-    .byte   %00100100 ; |  #  #  |            $1e8d (G)
-    .byte   %00100100 ; |  #  #  |            $1e8e (G)
-    .byte   %00100100 ; |  #  #  |            $1e8f (G)
-    .byte   %00011000 ; |   ##   |            $1e90 (G)
-    .byte   %00000000 ; |        |            $1e91 (G)
-    .byte   %00000000 ; |        |            $1e92 (G)
-    .byte   %00011000 ; |   ##   |            $1e93 (G)
-    .byte   %00100100 ; |  #  #  |            $1e94 (G)
-    .byte   %00100100 ; |  #  #  |            $1e95 (G)
-    .byte   %00100100 ; |  #  #  |            $1e96 (G)
-    .byte   %00011100 ; |   ###  |            $1e97 (G)
-    .byte   %00000100 ; |     #  |            $1e98 (G)
-    .byte   %00000100 ; |     #  |            $1e99 (G)
-    .byte   %00100100 ; |  #  #  |            $1e9a (G)
-    .byte   %00011000 ; |   ##   |            $1e9b (G)
-    .byte   %00000000 ; |        |            $1e9c (G)
-    .byte   %00000000 ; |        |            $1e9d (G)
-    .byte   %00000000 ; |        |            $1e9e (G)
-    .byte   %00100100 ; |  #  #  |            $1e9f (G)
-    .byte   %01111110 ; | ###### |            $1ea0 (G)
-    .byte   %00100100 ; |  #  #  |            $1ea1 (G)
-    .byte   %00100100 ; |  #  #  |            $1ea2 (G)
-    .byte   %01111110 ; | ###### |            $1ea3 (G)
-    .byte   %00100100 ; |  #  #  |            $1ea4 (G)
-    .byte   %00100100 ; |  #  #  |            $1ea5 (G)
-    .byte   %00000000 ; |        |            $1ea6 (G)
-    .byte   %00000000 ; |        |            $1ea7 (G)
-BlockGfx = . - $400
-    .byte   %00000000 ; |        |            $1ea8 (G)
-    .byte   %11111111 ; |########|            $1ea9 (G)
-    .byte   %11111111 ; |########|            $1eaa (G)
-    .byte   %11111111 ; |########|            $1eab (G)
-    .byte   %11111111 ; |########|            $1eac (G)
-    .byte   %11111111 ; |########|            $1ead (G)
-    .byte   %11111111 ; |########|            $1eae (G)
-    .byte   %11111111 ; |########|            $1eaf (G)
-    .byte   %11111111 ; |########|            $1eb0 (G)
-    .byte   %11111111 ; |########|            $1eb1 (G)
-    .byte   %00000000 ; |        |            $1eb2 (G)
-DigitPtr = . - $400
-    .byte   $4d                             ; $1eb3 (D)  
+WaitTbl 
+    .byte   $02,$02,$01,$00                 ; $1a20 (D)
+
+DigitGfx
+DigitCol0
+OneGfx
+    .byte   %00000000 ; |        |            $1a24 (G)
+    .byte   %00001000 ; |    #   |            $1a25 (G)
+    .byte   %00011000 ; |   ##   |            $1a26 (G)
+    .byte   %00001000 ; |    #   |            $1a27 (G)
+    .byte   %00001000 ; |    #   |            $1a28 (G)
+    .byte   %00001000 ; |    #   |            $1a29 (G)
+    .byte   %00001000 ; |    #   |            $1a2a (G)
+    .byte   %00001000 ; |    #   |            $1a2b (G)
+    .byte   %00001000 ; |    #   |            $1a2c (G)
+    .byte   %00011100 ; |   ###  |            $1a2d (G)
+    .byte   %00000000 ; |        |            $1a2e (G)
+DIGIT_H = . - OneGfx
+FourGfx
+    .byte   %00000000 ; |        |            $1a2f (G)
+    .byte   %00101000 ; |  # #   |            $1a30 (G)
+    .byte   %00101000 ; |  # #   |            $1a31 (G)
+    .byte   %00101000 ; |  # #   |            $1a32 (G)
+    .byte   %00101000 ; |  # #   |            $1a33 (G)
+    .byte   %00101000 ; |  # #   |            $1a34 (G)
+    .byte   %00111100 ; |  ####  |            $1a35 (G)
+    .byte   %00001000 ; |    #   |            $1a36 (G)
+    .byte   %00001000 ; |    #   |            $1a37 (G)
+    .byte   %00001000 ; |    #   |            $1a38 (G)
+    .byte   %00000000 ; |        |            $1a39 (G)
+    .byte   %00000000 ; |        |            $1a3a (G)
+    .byte   %00111100 ; |  ####  |            $1a3b (G)
+    .byte   %00000100 ; |     #  |            $1a3c (G)
+    .byte   %00000100 ; |     #  |            $1a3d (G)
+    .byte   %00000100 ; |     #  |            $1a3e (G)
+    .byte   %00001000 ; |    #   |            $1a3f (G)
+    .byte   %00001000 ; |    #   |            $1a40 (G)
+    .byte   %00010000 ; |   #    |            $1a41 (G)
+    .byte   %00010000 ; |   #    |            $1a42 (G)
+    .byte   %00010000 ; |   #    |            $1a43 (G)
+    .byte   %00000000 ; |        |            $1a44 (G)
+    .byte   %00000000 ; |        |            $1a45 (G)
+    .byte   %00000000 ; |        |            $1a46 (G)
+    .byte   %01000010 ; | #    # |            $1a47 (G)
+    .byte   %00100100 ; |  #  #  |            $1a48 (G)
+    .byte   %00011000 ; |   ##   |            $1a49 (G)
+    .byte   %01111110 ; | ###### |            $1a4a (G)
+    .byte   %00011000 ; |   ##   |            $1a4b (G)
+    .byte   %00100100 ; |  #  #  |            $1a4c (G)
+    .byte   %01000010 ; | #    # |            $1a4d (G)
+    .byte   %00000000 ; |        |            $1a4e (G)
+    .byte   %00000000 ; |        |            $1a4f (G)
+DigitCol1
+TwoGfx
+    .byte   %00000000 ; |        |            $1a50 (G)
+    .byte   %00011000 ; |   ##   |            $1a51 (G)
+    .byte   %00100100 ; |  #  #  |            $1a52 (G)
+    .byte   %00000100 ; |     #  |            $1a53 (G)
+    .byte   %00000100 ; |     #  |            $1a54 (G)
+    .byte   %00001000 ; |    #   |            $1a55 (G)
+    .byte   %00010000 ; |   #    |            $1a56 (G)
+    .byte   %00100000 ; |  #     |            $1a57 (G)
+    .byte   %00100000 ; |  #     |            $1a58 (G)
+    .byte   %00111100 ; |  ####  |            $1a59 (G)
+    .byte   %00000000 ; |        |            $1a5a (G)
+    .byte   %00000000 ; |        |            $1a5b (G)
+    .byte   %00111100 ; |  ####  |            $1a5c (G)
+    .byte   %00100000 ; |  #     |            $1a5d (G)
+    .byte   %00100000 ; |  #     |            $1a5e (G)
+    .byte   %00111000 ; |  ###   |            $1a5f (G)
+    .byte   %00100100 ; |  #  #  |            $1a60 (G)
+    .byte   %00000100 ; |     #  |            $1a61 (G)
+    .byte   %00000100 ; |     #  |            $1a62 (G)
+    .byte   %00100100 ; |  #  #  |            $1a63 (G)
+    .byte   %00011000 ; |   ##   |            $1a64 (G)
+    .byte   %00000000 ; |        |            $1a65 (G)
+    .byte   %00000000 ; |        |            $1a66 (G)
+    .byte   %00011000 ; |   ##   |            $1a67 (G)
+    .byte   %00100100 ; |  #  #  |            $1a68 (G)
+    .byte   %00100100 ; |  #  #  |            $1a69 (G)
+    .byte   %00100100 ; |  #  #  |            $1a6a (G)
+    .byte   %00011000 ; |   ##   |            $1a6b (G)
+    .byte   %00100100 ; |  #  #  |            $1a6c (G)
+    .byte   %00100100 ; |  #  #  |            $1a6d (G)
+    .byte   %00100100 ; |  #  #  |            $1a6e (G)
+    .byte   %00011000 ; |   ##   |            $1a6f (G)
+    .byte   %00000000 ; |        |            $1a70 (G)
+    .byte   %00000000 ; |        |            $1a71 (G)
+    .byte   %00011000 ; |   ##   |            $1a72 (G)
+    .byte   %00100100 ; |  #  #  |            $1a73 (G)
+    .byte   %00100100 ; |  #  #  |            $1a74 (G)
+    .byte   %00100100 ; |  #  #  |            $1a75 (G)
+    .byte   %00100100 ; |  #  #  |            $1a76 (G)
+    .byte   %00100100 ; |  #  #  |            $1a77 (G)
+    .byte   %00100100 ; |  #  #  |            $1a78 (G)
+    .byte   %00100100 ; |  #  #  |            $1a79 (G)
+    .byte   %00011000 ; |   ##   |            $1a7a (G)
+    .byte   %00000000 ; |        |            $1a7b (G)
+DigitCol2
+ThreeGfx
+    .byte   %00000000 ; |        |            $1a7c (G)
+    .byte   %00011000 ; |   ##   |            $1a7d (G)
+    .byte   %00100100 ; |  #  #  |            $1a7e (G)
+    .byte   %00000100 ; |     #  |            $1a7f (G)
+    .byte   %00000100 ; |     #  |            $1a80 (G)
+    .byte   %00011000 ; |   ##   |            $1a81 (G)
+    .byte   %00000100 ; |     #  |            $1a82 (G)
+    .byte   %00000100 ; |     #  |            $1a83 (G)
+    .byte   %00100100 ; |  #  #  |            $1a84 (G)
+    .byte   %00011000 ; |   ##   |            $1a85 (G)
+    .byte   %00000000 ; |        |            $1a86 (G)
+    .byte   %00000000 ; |        |            $1a87 (G)
+    .byte   %00011000 ; |   ##   |            $1a88 (G)
+    .byte   %00100100 ; |  #  #  |            $1a89 (G)
+    .byte   %00100000 ; |  #     |            $1a8a (G)
+    .byte   %00100000 ; |  #     |            $1a8b (G)
+    .byte   %00111000 ; |  ###   |            $1a8c (G)
+    .byte   %00100100 ; |  #  #  |            $1a8d (G)
+    .byte   %00100100 ; |  #  #  |            $1a8e (G)
+    .byte   %00100100 ; |  #  #  |            $1a8f (G)
+    .byte   %00011000 ; |   ##   |            $1a90 (G)
+    .byte   %00000000 ; |        |            $1a91 (G)
+    .byte   %00000000 ; |        |            $1a92 (G)
+    .byte   %00011000 ; |   ##   |            $1a93 (G)
+    .byte   %00100100 ; |  #  #  |            $1a94 (G)
+    .byte   %00100100 ; |  #  #  |            $1a95 (G)
+    .byte   %00100100 ; |  #  #  |            $1a96 (G)
+    .byte   %00011100 ; |   ###  |            $1a97 (G)
+    .byte   %00000100 ; |     #  |            $1a98 (G)
+    .byte   %00000100 ; |     #  |            $1a99 (G)
+    .byte   %00100100 ; |  #  #  |            $1a9a (G)
+    .byte   %00011000 ; |   ##   |            $1a9b (G)
+    .byte   %00000000 ; |        |            $1a9c (G)
+    .byte   %00000000 ; |        |            $1a9d (G)
+    .byte   %00000000 ; |        |            $1a9e (G)
+    .byte   %00100100 ; |  #  #  |            $1a9f (G)
+    .byte   %01111110 ; | ###### |            $1aa0 (G)
+    .byte   %00100100 ; |  #  #  |            $1aa1 (G)
+    .byte   %00100100 ; |  #  #  |            $1aa2 (G)
+    .byte   %01111110 ; | ###### |            $1aa3 (G)
+    .byte   %00100100 ; |  #  #  |            $1aa4 (G)
+    .byte   %00100100 ; |  #  #  |            $1aa5 (G)
+    .byte   %00000000 ; |        |            $1aa6 (G)
+    .byte   %00000000 ; |        |            $1aa7 (G)
+BlockGfx
+    .byte   %00000000 ; |        |            $1aa8 (G)
+    .byte   %11111111 ; |########|            $1aa9 (G)
+    .byte   %11111111 ; |########|            $1aaa (G)
+    .byte   %11111111 ; |########|            $1aab (G)
+    .byte   %11111111 ; |########|            $1aac (G)
+    .byte   %11111111 ; |########|            $1aad (G)
+    .byte   %11111111 ; |########|            $1aae (G)
+    .byte   %11111111 ; |########|            $1aaf (G)
+    .byte   %11111111 ; |########|            $1ab0 (G)
+    .byte   %11111111 ; |########|            $1ab1 (G)
+    .byte   %00000000 ; |        |            $1ab2 (G)
+DigitPtr
+    .byte   $4d                             ; $1ab3 (D)  
     .byte   OneGfx-DigitGfx, TwoGfx-DigitGfx, ThreeGfx-DigitGfx
     .byte   $0b,$37,$63
     .byte   $16,$42,$6e
-    .byte   $d3,$cc,$ef,$f4,$16,$00         ; $1ebd (D)
-    .byte   $06,$d3,$e1,$d6,$c5,$04,$12,$00 ; $1ec3 (D)
-    .byte   $12,$d4,$d2,$f5,$ee             ; $1ecb (D)
+    .byte   $d3,$cc,$ef,$f4,$16,$00         ; $1abd (D)
+    .byte   $06,$d3,$e1,$d6,$c5,$04,$12,$00 ; $1ac3 (D)
+    .byte   $12,$d4,$d2,$f5,$ee             ; $1acb (D)
 
-L12d0 = . - $c00
+;===============================================================================
+
+    RORG    . - $800                ;           code for slice 0/3
+
+L12d0
     lda     #%01111111              ;2
     ldx     #$08                    ;2
     ldy     #$ff                    ;2
     sty     AUDV0                   ;3
     ldy     #$01                    ;2
     sty     AUDC0                   ;3
-L12dc = . - $c00
+L12dc
     sta     PF1                     ;3
     sta     PF2                     ;3
     stx     AUDF0                   ;3
     jsr     L1533                   ;6
     cmp     #$00                    ;2
-    beq     L1eee                   ;2/3
+    beq     L12ee                   ;2/3
     dex                             ;2
     lsr                             ;2
     jmp     L12dc                   ;3   =  40
 
-L1eee
+L12ee
     sta     AUDV0                   ;3
     rts                             ;6   =   9
 
-L12f1 = . - $c00
+L12f1
     jsr     L14b9                   ;6
     lda     #$20                    ;2
-    jsr     L17f1                   ;6
+    jsr     SendByte                ;6
     lda     GL_885                  ;4
     lda     $1802                   ;4
-    bne     L1f09                   ;2/3
+    bne     L1309                   ;2/3
     lda     #<L1308                 ;2
     ldx     #>L1308                 ;2
     jmp     L130f                   ;3   =  31
 
-L1308 = . - $c00
+L1308
     brk                             ;7   =   7
 
-L1f09
+L1309
     lda     $180a                   ;4
     ldx     $180b                   ;4
-L130f = . - $c00
+L130f
     sta     dataPtr2                ;3
     stx     dataPtr2+1              ;3
     ldy     #$00                    ;2
     lda     (dataPtr2),y            ;5
     clc                             ;2
     adc     #$05                    ;2
-    jsr     L17f1                   ;6
+    jsr     SendByte                ;6
     lda     ram_D2                  ;3
-    jsr     L17f1                   ;6
+    jsr     SendByte                ;6
     lda     ram_D3                  ;3
-    jsr     L17f1                   ;6
+    jsr     SendByte                ;6
     lda     dialSpeed               ;3
     asl                             ;2
     asl                             ;2
@@ -2303,28 +2316,28 @@ L130f = . - $c00
     lda     dialType                ;3
     and     #$0f                    ;2
     ora     ram_DE                  ;3
-    jsr     L17f1                   ;6          
-    jsr     L14d5                   ;6
+    jsr     SendByte                ;6          
+    jsr     SendCRC                 ;6
     jsr     SetDelay                ;6
     ldy     #$00                    ;2   =  91
-L1f40
+L1340
     lda     L1fda,y                 ;4
-    jsr     L17f1                   ;6
+    jsr     SendByte                ;6
     iny                             ;2
     cpy     #$05                    ;2
-    bne     L1f40                   ;2/3
+    bne     L1340                   ;2/3
     ldy     #$00                    ;2
     lda     (dataPtr2),y            ;5
-    beq     L1f5b                   ;2/3
+    beq     L135b                   ;2/3
     tax                             ;2   =  27
-L1f52
+L1352
     iny                             ;2
     lda     (dataPtr2),y            ;5
-    jsr     L17f1                   ;6
+    jsr     SendByte                ;6
     dex                             ;2
-    bne     L1f52                   ;2/3 =  17
-L1f5b
-    jsr     L14d5                   ;6
+    bne     L1352                   ;2/3 =  17
+L135b
+    jsr     SendCRC                 ;6
     jsr     L14e0                   ;6
     rts                             ;6   =  18
 
@@ -2334,21 +2347,25 @@ L1f5b
     .byte   $16,$ef,$16,$79,$15,$32,$1d,$24 ; $1f7a (D)
     .byte   $5a,$30,$03,$20,$81,$14         ; $1f82 (D)
 
+;===============================================================================
+
+    RORG    . + $c00                ;           code for slice 3/3
+
 CheckSum SUBROUTINE
     ldx     #$00                    ;2
-    stx     ram_CA                  ;3
+    stx     crcHi                   ;3
     lda     GL_STOP_PULSE           ;4   =   9  
 L1f8f
     lda     L1fc0,x                 ;4          ..$1fdf
-    eor     ram_CA                  ;3
-    sta     ram_CA                  ;3
+    eor     crcHi                   ;3
+    sta     crcHi                   ;3
     asl                             ;2
-    rol     ram_CA                  ;5
+    rol     crcHi                   ;5
     inx                             ;2
     cpx     #$1f                    ;2
     bne     L1f8f                   ;2/3
     lda     L1fc0,x                 ;4
-    cmp     ram_CA                  ;3
+    cmp     crcHi                   ;3
   IF ORIGINAL
     bne     .error                  ;2/3
   ELSE

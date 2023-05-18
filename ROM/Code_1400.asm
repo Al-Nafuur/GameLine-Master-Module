@@ -2,62 +2,49 @@
 ;      RIOT RAM (zero-page) labels
 ;-----------------------------------------------------------
 
-ram_8F          = $8f
-
-ram_AD          = $ad
-ram_AE          = $ae
-
 ram_C0          = $c0
 ram_C1          = $c1
-
+                   
 
 ;***********************************************************
 ;      Code
 ;***********************************************************
 
-    ORG     $1800
-    RORG    $1400
-
-GL_480          = $480
-GL_485          = $485
-
-GL_8A0          = $8a0
-
-GL_CBA          = $cba
-GL_CBB          = $cbb
+    RORG    $1400                   ;               code for slice 1/3
 
 L1400 SUBROUTINE
-    jmp     L1405                   ;3   =   3 *
+    jmp     .jump                   ;3   =   3 *
 
 L1403    
-    .word   L1577                           ; $1403 (D)
+    .word   LoadData                ; $1403 (D)
     
-L1405
+.jump
     ldx     #$00                    ;2         
     stx     ram_CF                  ;3         
     stx     COLUBK                  ;3         
-    lda     #$43                    ;2         
+    lda     #RED|$3                 ;2         
     sta     COLUPF                  ;3   
 ;L100f?
     inx                             ;2         
-    stx     CTRLPF                  ;3         
-    lda     ram_D4                  ;3         
-    bne     L1423                   ;2/3       
-    inc     ram_D4                  ;5         
+    stx     CTRLPF                  ;3              = 1       
+    lda     animState               ;3              animation already started?
+    bne     .setupPF                ;2/3             yes, continue animation
+    inc     animState               ;5               no, start animation
     inx                             ;2         
-    stx     ram_D5                  ;3         
+    stx     animDelay               ;3              = 2   
     lda     #$1b                    ;2         
-    sta     ram_D6                  ;3         
+    sta     xCurtain                ;3         
     jsr     L148c                   ;6         
     rts                             ;6   =  50 
     
-L1423
-    dex                             ;2         
+.setupPF
+; coarse setup of PF registers:
+    dex                             ;2              -> X = 0  
     stx     PF0                     ;3         
     stx     PF1                     ;3         
     stx     PF2                     ;3         
     dex                             ;2         
-    ldy     ram_D6                  ;3         
+    ldy     xCurtain                ;3         
     cpy     #$18                    ;2         
     bpl     L1439                   ;2/3       
     cpy     #$10                    ;2         
@@ -66,6 +53,7 @@ L1423
 L1437
     stx     PF0                     ;3   =   3 
 L1439
+; no clue...:
     lda     ram_DB                  ;3         
     bmi     L1443                   ;2/3       
     jsr     L169f                   ;6         
@@ -74,37 +62,38 @@ L1443
     jsr     L149e                   ;6         
     rts                             ;6   =  12 
     
-L1447 SUBROUTINE
-    dec     ram_D5                  ;5         
-    bne     L1477                   ;2/3       
+AnimLoad SUBROUTINE
+    dec     animDelay               ;5         
+    bne     .exit                   ;2/3       
+; slowly close the PF curtain:
     lda     #$04                    ;2         
-    sta     ram_D5                  ;3         
-    ldx     ram_D6                  ;3         
-    ldy     #$00                    ;2         
+    sta     animDelay               ;3         
+    ldx     xCurtain                ;3         
+    ldy     #$00                    ;2              update PF0    
     cpx     #$18                    ;2         
-    bpl     L145f                   ;2/3       
-    dec     ram_D5                  ;5         
-    iny                             ;2         
+    bpl     .pfOK                   ;2/3       
+    dec     animDelay               ;5         
+    iny                             ;2              update PF1
     cpx     #$10                    ;2         
-    bpl     L145f                   ;2/3       
-    iny                             ;2   =  34 
-L145f
+    bpl     .pfOK                   ;2/3       
+    iny                             ;2   =  34      update PF2
+.pfOK
     stx     AUDF0                   ;3         
     cpx     #$08                    ;2         
-    bpl     L1467                   ;2/3       
-    ldx     #$08                    ;2   =   9 
-L1467
-    lda     L1478-8,x               ;4         
-    sta.wy  PF0,y                   ;5         
+    bpl     .indexOK                ;2/3       
+    ldx     #$08                    ;2   =   9      X >= 8
+.indexOK
+    lda     CurtainGfx-8,x          ;4         
+    sta.wy  PF0,y                   ;5              PF0|1|2   
     lda     #$01                    ;2
     sta     AUDC0                   ;2
     lda     #$0a                    ;2
     sta     AUDV0                   ;3         
-    dec     ram_D6                  ;5   =  23 
-L1477
+    dec     xCurtain                ;5   =  23 
+.exit
     rts                             ;6   =   6 
 
-L1478    
+CurtainGfx    
     .byte   %11111111 ; |********|            $1478 (P)
     .byte   %01111111 ; | *******|            $1479 (P)
     .byte   %00111111 ; |  ******|            $147a (P)
@@ -131,7 +120,7 @@ L148c SUBROUTINE
     sta     ram_C7                  ;3         
     lda     #$00                    ;2         
     sta     ram_D7                  ;3   =  10 
-L1494
+.outerLoop
     lda     ram_D7                  ;3         
     bne     L149e                   ;2/3       
     lda     GL_480                  ;4              switch bank 3 into slice 0
@@ -146,43 +135,43 @@ L149e
     
 L14af
     dec     ram_C7                  ;5         
-    bpl     L1494                   ;2/3       
+    bpl     .outerLoop              ;2/3       
     lda     #$00                    ;2         
-    sta     ram_D4                  ;3         
+    sta     animState               ;3              reset animation state 
     sec                             ;2         
     rts                             ;6   =  20 
     
 L14b9 SUBROUTINE
     jsr     L14f0                   ;6         
-    jsr     L17dc                   ;6         
+    jsr     ResetCRC                ;6         
     lda     #$aa                    ;2         
-    jsr     L1540                   ;6         
+    jsr     TransferByte            ;6         
     lda     ram_D0                  ;3         
     bne     L14cc                   ;2/3       
     dec     ram_D0                  ;5         
     lda     ram_D0                  ;3   =  33 
 L14cc
-    jsr     L17f1                   ;6         
+    jsr     SendByte                ;6         
     lda     ram_D1                  ;3         
-    jsr     L17f1                   ;6         
+    jsr     SendByte                ;6         
     rts                             ;6   =  21 
     
-L14d5 SUBROUTINE
-    lda     ram_CA                  ;3         
-    jsr     L1540                   ;6         
-    lda     ram_CB                  ;3         
-    jsr     L1540                   ;6         
+SendCRC SUBROUTINE
+    lda     crcHi                   ;3         
+    jsr     TransferByte            ;6         
+    lda     crcLo                   ;3         
+    jsr     TransferByte            ;6         
     rts                             ;6   =  24 
     
 L14e0 SUBROUTINE
     lda     GL_START_PULSE          ;4         
     jsr     L14fd                   ;6         
-    bcc     L14ef                   ;2/3       
+    bcc     .exit                   ;2/3       
     lda     ram_C7                  ;3         
     sec                             ;2         
     sbc     #$04                    ;2         
     sta     ram_C7                  ;3   =  22 
-L14ef
+.exit
     rts                             ;6   =   6 
     
 L14f0 SUBROUTINE
@@ -242,7 +231,7 @@ L1539
     pla                             ;4         
     rts                             ;6   =  16 
     
-L1540 SUBROUTINE
+TransferByte SUBROUTINE
     sta     ram_CE                  ;3         
     pha                             ;3         
     txa                             ;2         
@@ -260,13 +249,13 @@ L1540 SUBROUTINE
     lda     #$85                    ;2         
     sta     TIM8T                   ;4         
     ror     ram_CE                  ;5         
-    bcs     L1565                   ;2/3       
+    bcs     .bitSet                 ;2/3       
     lda     GL_CBA                  ;4              bit transfer?
-    jmp     L1568                   ;3   =  26 
+    jmp     .bitClear               ;3   =  26 
     
-L1565
+.bitSet
     lda     GL_CBB                  ;4   =   4      bit transfer?
-L1568
+.bitClear
     dey                             ;2         
     sec                             ;2         
     bne     .loop                   ;2/3 =   6 
@@ -280,7 +269,7 @@ L1568
     pla                             ;4         
     rts                             ;6   =  28 
     
-L1577 SUBROUTINE
+LoadData SUBROUTINE
     lda     ram_CF                  ;3        
     bne     L1581                   ;2/3      
     jsr     L15b9                   ;6         
@@ -288,7 +277,7 @@ L1577 SUBROUTINE
     rts                             ;6   =  19 
     
 L1581
-    ldy     #$08                    ;2         
+    ldy     #8                      ;2              8 bits
     lda     #$00                    ;2         
     sta     ram_CE                  ;3   =   7 
 .loop
@@ -321,7 +310,7 @@ L15b0
     rts                             ;6   =  20 
     
 L15b9 SUBROUTINE
-    lda     #$64                    ;2         
+    lda     #100                    ;2         
     sta     ram_C0                  ;3   =   5 
 .loop
     lda     #$ba                    ;2         
@@ -382,9 +371,9 @@ L161b
     ldx     #$03                    ;2         
     lda     ram_E0                  ;3   =  15 
 L1625
-    cmp     L165d,x                 ;4         
+    cmp     FromTbl,x               ;4         
     bmi     L1657                   ;2/3       
-    cmp     L1661,x                 ;4         
+    cmp     ToTbl,x                 ;4         
     bpl     L1657                   ;2/3       
     stx     ram_E0                  ;3         
     lda     L166d,x                 ;4         
@@ -411,9 +400,9 @@ L1657
     bpl     L1625                   ;2/3       
     jmp     .loop                   ;3   =   7 
     
-L165d
+FromTbl
     .byte   $50,$69,$7c,$a0                 ; $165d (D)
-L1661
+ToTbl
     .byte   $68,$7b,$9f,$cd                 ; $1661 (D)
 L1665
     .byte   $02,$03,$04,$05                 ; $1665 (D)
@@ -424,7 +413,7 @@ L166d
     
 L1671 SUBROUTINE
     lda     ram_DB                  ;3         
-    jsr     L17c3                   ;6         
+    jsr     Div16                   ;6         
     cmp     ram_CC                  ;3         
     bpl     L167e                   ;2/3       
     ldy     #$00                    ;2         
@@ -434,14 +423,14 @@ L167e
     tay                             ;2         
     lda     L1697,y                 ;4         
     and     ram_CD                  ;3         
-    bne     L1696                   ;2/3       
+    bne     .exit                   ;2/3       
     lda     L1697,y                 ;4         
     ora     ram_CD                  ;3         
     sta     ram_CD                  ;3         
-    jsr     L1447                   ;6         
+    jsr     AnimLoad                ;6         
     lda     #$0a                    ;2         
     sta     ram_C7                  ;3   =  35 
-L1696
+.exit
     rts                             ;6   =   6 
     
 L1697
@@ -450,15 +439,15 @@ L1697
 L169f SUBROUTINE
     jsr     L14b9                   ;6         
     lda     #$10                    ;2         
-    jsr     L17f1                   ;6         
+    jsr     SendByte                ;6         
     lda     #$00                    ;2         
-    jsr     L17f1                   ;6         
+    jsr     SendByte                ;6         
     lda     ram_CD                  ;3         
-    jsr     L17f1                   ;6         
+    jsr     SendByte                ;6         
     lda     #$00                    ;2         
-    jsr     L17f1                   ;6         
-    jsr     L17f1                   ;6         
-    jsr     L14d5                   ;6         
+    jsr     SendByte                ;6         
+    jsr     SendByte                ;6         
+    jsr     SendCRC                 ;6         
     jsr     L14e0                   ;6         
     rts                             ;6   =  63 
     
@@ -466,14 +455,14 @@ L16c0 SUBROUTINE
     bit     ram_C8                  ;3         
     bmi     L16e0                   ;2/3       
     ldy     #$00                    ;2         
-    sta     (ram_AD),y              ;6         
-    jsr     L17e3                   ;6         
+    sta     (dataPtr2),y            ;6         
+    jsr     UpdateCRC               ;6         
     lda     ram_D7                  ;3         
     cmp     ram_D0                  ;3         
     bne     L16ea                   ;2/3       
-    inc     ram_AD                  ;5         
+    inc     dataPtr2                ;5         
     bne     L16d7                   ;2/3       
-    inc     ram_AE                  ;5   =  39 
+    inc     dataPtr2+1              ;5   =  39 
 L16d7
     dec     ram_C9                  ;5         
     beq     L16dc                   ;2/3       
@@ -485,11 +474,11 @@ L16dc
     rts                             ;6   =  13 
     
 L16e0
-    ldy     #$00                    ;2         
+    ldy     #$00                    ;2              hi
     bvc     L16e5                   ;2/3       
-    iny                             ;2   =   6 
+    iny                             ;2   =   6      lo
 L16e5
-    cmp.wy  ram_CA,y                ;4         
+    cmp.wy  crcLst,y                ;4         
     beq     L16ed                   ;2/3 =   6 
 L16ea
     dec     ram_CF                  ;5         
@@ -514,13 +503,13 @@ L16f8
     tax                             ;2         
     lda     GL_8A0,x                ;4         
     lda     ram_DD                  ;3         
-    eor     #$18                    ;2         
-    sta     ram_AE                  ;3         
+    eor     #>$1800                 ;2         
+    sta     dataPtr2+1              ;3         
     lda     ram_DC                  ;3         
-    sta     ram_AD                  ;3         
+    sta     dataPtr2                ;3         
     lda     #$08                    ;2         
     sta     ram_C8                  ;3         
-    jsr     L17dc                   ;6         
+    jsr     ResetCRC                ;6         
     rts                             ;6   =  58 
     
 L171e
@@ -532,16 +521,16 @@ L171e
     jsr     L1671                   ;6         
     lda     ram_D9                  ;3         
     and     #$04                    ;2         
-    beq     L1737                   ;2/3 =  27 
+    beq     .exit                   ;2/3 =  27 
 L1731
     jsr     L169f                   ;6         
     jsr     L14e0                   ;6   =  12 
-L1737
+.exit
     rts                             ;6   =   6 
     
 L1738
     cmp     #$40                    ;2         
-    bne     L1737                   ;2/3       
+    bne     .exit                   ;2/3       
     lda     #$01                    ;2         
     sta     ram_CD                  ;3         
     lda     ram_DB                  ;3         
@@ -564,11 +553,11 @@ L175d
     lsr     ram_D9                  ;5         
     bcs     L179f                   ;2/3       
     lda     ram_DC                  ;3         
-    jsr     L17c3                   ;6         
+    jsr     Div16                   ;6         
     tax                             ;2         
     lda     GL_480,x                ;4         
     lda     ram_DD                  ;3         
-    jsr     L17c3                   ;6         
+    jsr     Div16                   ;6         
     tax                             ;2         
     lda     GL_880,x                ;4         
     lda     ram_DD                  ;3         
@@ -577,14 +566,14 @@ L175d
     lda     GL_980,x                ;4         
     ldx     #$06                    ;2   =  57 
 L1781
-    lda     L17ae,x                 ;4         
-    sta     ram_8F,x                ;4         
+    lda     RamCode,x               ;4         
+    sta     ramCode,x               ;4         
     dex                             ;2         
     bpl     L1781                   ;2/3       
     lda     ram_DC                  ;3         
     and     #$0f                    ;2         
     tax                             ;2         
-    jmp.w   ram_8F                  ;3   =  22 
+    jmp.w   ramCode                 ;3   =  22 
     
 L1791
     jsr     L17b4                   ;6         
@@ -603,9 +592,9 @@ L179f
     txs                             ;2         
     lda     ram_DC                  ;3         
     ldx     ram_DD                  ;3         
-    jmp     (L1003)                 ;5   =  24      
+    jmp     (L1003)                 ;5   =  24      -> L1106?
 
-L17ae
+RamCode 
     lda     GL_580,x                ;4         
     jmp     (L1ffc)                 ;5   =   9 
 
@@ -619,7 +608,7 @@ L17b4 SUBROUTINE
     lda     GL_880,x                ;4         
     rts                             ;6   =  25 
     
-L17c3 SUBROUTINE
+Div16 SUBROUTINE
     lsr                             ;2         
     lsr                             ;2         
     lsr                             ;2         
@@ -629,35 +618,35 @@ L17c3 SUBROUTINE
 L17c8 SUBROUTINE
     lda     #$00                    ;2         
     sta     ram_C8                  ;3         
-    lda     #$d7                    ;2         
-    sta     ram_AD                  ;3         
-    lda     #$00                    ;2         
-    sta     ram_AE                  ;3         
+    lda     #<ram_D7                ;2         
+    sta     dataPtr2                ;3         
+    lda     #>ram_D7                ;2         
+    sta     dataPtr2+1              ;3         
     lda     #$07                    ;2         
     sta     ram_C9                  ;3         
-    jsr     L17dc                   ;6         
+    jsr     ResetCRC                ;6         
     rts                             ;6   =  32 
     
-L17dc SUBROUTINE
+ResetCRC SUBROUTINE
     lda     #$00                    ;2         
-    sta     ram_CA                  ;3         
-    sta     ram_CB                  ;3         
+    sta     crcHi                   ;3         
+    sta     crcLo                   ;3         
     rts                             ;6   =  14 
     
-L17e3 SUBROUTINE
+UpdateCRC SUBROUTINE
     pha                             ;3         
-    eor     ram_CB                  ;3         
-    sta     ram_CB                  ;3         
-    lda     ram_CA                  ;3         
+    eor     crcLo                   ;3         
+    sta     crcLo                   ;3         
+    lda     crcHi                   ;3         
     asl                             ;2         
-    rol     ram_CB                  ;5         
-    rol     ram_CA                  ;5         
+    rol     crcLo                   ;5         
+    rol     crcHi                   ;5         
     pla                             ;4         
     rts                             ;6   =  34 
     
-L17f1 SUBROUTINE
-    jsr     L17e3                   ;6         
-    jsr     L1540                   ;6         
+SendByte SUBROUTINE
+    jsr     UpdateCRC               ;6         
+    jsr     TransferByte            ;6         
     rts                             ;6   =  18 
 
     .byte   $4f,$4f,$00,$00,$4f,$4f,$06,$05 ; $17f8 (D)
