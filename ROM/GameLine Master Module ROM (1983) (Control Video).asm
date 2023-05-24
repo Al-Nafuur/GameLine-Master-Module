@@ -26,7 +26,7 @@
 ; A S S E M B L E R - S W I T C H E S
 ;===============================================================================
 
-ORIGINAL        = 1         ; 1 = compile 100% identical to dump
+ORIGINAL        = 0         ; 1 = compile 100% identical to dump
 
 
 ;===============================================================================
@@ -171,7 +171,7 @@ ram_88          = ram85Lst+3
 ram_8B          = $8b
 ram_8C          = $8c       ; temp. var
 color           = $8d
-frameCnt        = $8e       ; frame counter
+frameCnt        = $8e       ; frame timeCnt
 ;---------------------------------------
 ptrLst          = $8f
 ram_8F          = ptrLst
@@ -211,15 +211,13 @@ digit2          = digitLst+2
 dataPtr         = $ab   ;..$ac
 dataPtr2        = $ad   ;..$ae
 ram_AF          = $af
-ram_B3          = $b0
-ram_B0          = $b1
-ram_B1          = $b2
-ram_B2          = $b3
-ram_B4          = $b4
-ram_B5          = $b5
+ram_B0          = $b0
+ram_B1          = $b1
+ram_B2          = $b2
+ram_B3          = $b3
+unusedPtr       = $b4   ;..$b5
 slice3BankB     = $b6
-ram_B7          = $b7
-ram_B8          = $b8
+unusedFlag      = $b7
 
 pulseCount      = $ba
 jmpIdx          = $bb
@@ -227,21 +225,21 @@ dialCount       = $bc
 numberIdx       = $bd
 numberPtrIdx    = $be
 dialType        = $bf   ; unsure!
-counter         = $c0   ;..$c1      (*1000 = ~cylces)
+timeCnt         = $c0   ;..$c1 (*1000 = ~cylces), also used for an unused pointer
 numberPtr       = $c2   ;..$c3
 dialSpeed       = $c4   ; also type
 
-ram_C6          = $c6   ; never read, written once?
+ram_C6          = $c6   ; never read, written once
 retryCnt        = $c7
-ram_C8          = $c8
-ram_C9          = $c9
+storeFlags      = $c8
+storeCnt        = $c9
 crcLst          = $ca   ; ..$cb
 crcHi           = crcLst
 crcLo           = crcLst+1
 bitIdx          = $cc   ; = $db / 16
 bitSet          = $cd
 transferByte    = $ce
-loadFlag        = $cf
+loadFlag        = $cf   ; 0|1
 ram_D0          = $d0   ; increased once (hi)
 ram_D1          = $d1   ; increased once (low)
 ram_D2          = $d2
@@ -252,11 +250,11 @@ xCurtain        = $d6
 ram_D7          = $d7
 ram_D8          = $d8
 ram_D9          = $d9
-ram_DA          = $da
+ram_DA          = $da   ; loaded only via ($d7),y; -> storeCnt
 ram_DB          = $db   ; ????2222 ?, bank into slice 2
 ram_DC          = $dc   ; 00001111 -> banks into slices 0/1
 ram_DD          = $dd   ; 22223333 -> banks into slices 2/3
-ram_DE          = $de
+tmpVarDE        = $de
 ram_DF          = $df
 speedIdx        = $e0
 
@@ -291,6 +289,7 @@ L1813   = $1813     ; -> numberPtr+1, indexed
 ;***********************************************************
 ;      Bank 0
 ;***********************************************************
+; 1K ROM bank #0
 
     SEG     CODE
 
@@ -422,8 +421,8 @@ L10c3
 
 L10c9 SUBROUTINE
     lda     SL1_B2                  ;4                  switch ROM bank 2 into slice 1
-    lda     #<L1400                 ;2                  -> ??? (from ROM $1800)
-    ldx     #>L1400                 ;2
+    lda     #<L1400                 ;2                  "jmp Load" -> ??? (from ROM $1800)
+    ldx     #>L1400                 ;2                  
     jmp     SetDataPtr2             ;3   =  11
 
 L10d3 SUBROUTINE
@@ -435,18 +434,18 @@ SetDataPtr2
     stx     dataPtr2+1              ;3
     jsr     JmpToPtr2               ;6   =  12
 SetupBanks
-    stx     ram_DE                  ;3
+    stx     tmpVarDE                ;3
     ldx     slice1Bank              ;3          2?
     lda     SL1_BX,x                ;4                  switch ROM/RAM bank X(1?) into slice 1
     ldx     slice2Bank              ;3          4?
     lda     SL2_BX,x                ;4                  switch ROM/RAM bank X(3,?) into slice 2
     ldx     slice3Bank              ;3          13|0?
     lda     SL3_BX,x                ;4                  switch ROM/RAM bank X(0,13?) into slice 3
-    ldx     ram_DE                  ;3
+    ldx     tmpVarDE                ;3
     rts                             ;6   =  33
 
 JmpToPtr2 SUBROUTINE
-    jmp.ind (dataPtr2)              ;5   =   5          $1ece?|???
+    jmp.ind (dataPtr2)              ;5   =   5          $1ece?|Load???
 
 L10fa SUBROUTINE
     lda     SL2_R0                  ;4                  switch RAM bank 0 into slice 2 for reading
@@ -494,7 +493,7 @@ L1134
     jsr     XPosSprites             ;6
     ldy     #$0a                    ;2          Y = $a
     lda     (dataPtr),y             ;5          $1c0a = $7f; $1812 = 
-    sta     ram_B3                  ;3
+    sta     ram_B0                  ;3
     ldy     #$02                    ;2          Y = 2
     lda     (dataPtr),y             ;5          $1c02 = $00; $180a = 
     beq     L1178                   ;2/3
@@ -504,11 +503,11 @@ L1134
     sta     jmpIdx                  ;3
     iny                             ;2          Y = 4
     lda     (dataPtr),y             ;5          $1c04 = $00; $180c = 
-    sta     counter                 ;3
+    sta     timeCnt                 ;3          another pointer lo
     iny                             ;2          Y = 5
     lda     (dataPtr),y             ;5          $1c05 = $00; $180d = 
-    jsr     SplitA                  ;6
-    sta     counter+1               ;3          A = $10..$1f
+    jsr     GetHiPtrBank            ;6
+    sta     timeCnt+1               ;3          another pointer hi (A = $10..$1f)
     lda     SL1_BX,x                ;4          X = (dataPtr),y/16
     lda     #$06                    ;2
     sta     pulseCount              ;3
@@ -520,12 +519,12 @@ L1178
     iny                             ;2          Y = $f
     lda     (dataPtr),y             ;5          $1c0f = $00
     beq     L118f                   ;2/3
-    stx     ram_B4                  ;3
-    jsr     SplitA                  ;6
-    sta     ram_B5                  ;3
+    stx     unusedPtr               ;3
+    jsr     GetHiPtrBank            ;6
+    sta     unusedPtr+1             ;3
     stx     slice3BankB             ;3
     lda     #$01                    ;2
-    sta     ram_B7                  ;3   =  38
+    sta     unusedFlag              ;3   =  38
 L118f
     ldy     #$10                    ;2          Y = $10
     lda     (dataPtr),y             ;5          $1c10 = $00
@@ -540,7 +539,7 @@ L11a0
     ldy     #$01                    ;2          Y = 1
     lda     (dataPtr),y             ;5          $1c01 = $1e
     sta     ram_D2                  ;3
-    sta     ram_B0                  ;3
+    sta     ram_B1                  ;3
     jsr     WaitTim                 ;6
     lda     #$02                    ;2
     sta     TIM64T                  ;4
@@ -562,7 +561,7 @@ L11b6
     sta     PF2                     ;3   =  31
 L11cb
     lda     #$00                    ;2
-    sta     ram_B2                  ;3
+    sta     ram_B3                  ;3
     ldy     #$0b                    ;2          Y = $b
     lda     (dataPtr),y             ;5          $1c0b = $10
     beq     L11d9                   ;2/3
@@ -591,7 +590,7 @@ L11f5 ;.loop?
     clc                             ;2
     adc     ram_8B                  ;3
     adc     #$02                    ;2
-    cmp     ram_B3                  ;3
+    cmp     ram_B0                  ;3
     bcs     L1271                   ;2/3
     sta     ram_8B                  ;3
     lda     ram_87                  ;3
@@ -607,7 +606,7 @@ L1210
     tax                             ;2
     clc                             ;2
     adc     ram_8B                  ;3
-    cmp     ram_B3                  ;3
+    cmp     ram_B0                  ;3
     bcs     L1271                   ;2/3
     sta     ram_8B                  ;3
     jsr     WaitLines               ;6
@@ -642,7 +641,7 @@ L123c
     iny                             ;2
     cpy     #$0c                    ;2
     bne     .loop                   ;2/3
-    jsr     SplitA                  ;6      A -> A, X
+    jsr     GetHiPtrBank            ;6      A -> A, X
     sta     ram_9A                  ;3
     lda     SL3_BX,x                ;4      X = (dataPtr2),y / 16
     jmp     L11f5                   ;3   =  32
@@ -658,7 +657,7 @@ L126a
 
 L126d
     lda     #$ff                    ;2
-    sta     ram_B1                  ;3   =   5
+    sta     ram_B2                  ;3   =   5
 L1271
     jsr     WaitTim                 ;6
     lda     #$00                    ;2
@@ -764,7 +763,7 @@ WaitLines
     bne     WaitLines               ;2/3
     rts                             ;6   =  10
 
-SplitA SUBROUTINE
+GetHiPtrBank SUBROUTINE
     pha                             ;3
     lsr                             ;2
     lsr                             ;2
@@ -782,11 +781,11 @@ L1326 SUBROUTINE
     lda     (dataPtr),y             ;5
     bmi     .loop                   ;2/3
     beq     .loop                   ;2/3
-    lda     ram_B2                  ;3
+    lda     ram_B3                  ;3
     bne     .loop                   ;2/3
-    ldy     ram_B0                  ;3
+    ldy     ram_B1                  ;3
     sty     ram_84                  ;3
-    sty     ram_B2                  ;3   =  28
+    sty     ram_B3                  ;3   =  28
 .loop
     lda     (dataPtr),y             ;5
     sta     ram85Lst,x              ;4
@@ -796,7 +795,7 @@ L1326 SUBROUTINE
     bne     .loop                   ;2/3
     lda     ram_84                  ;3
     sty     ram_84                  ;3
-    sty     ram_B1                  ;3
+    sty     ram_B2                  ;3
     tay                             ;2
     rts                             ;6   =  34
 
@@ -902,7 +901,11 @@ L13d7
     inc     frameCnt                ;5
     jmp     L13ca                   ;3   =  65
 
-;###############################################################################
+
+;***********************************************************
+;      Bank 1
+;***********************************************************
+; 1K ROM bank #1
 
 ;    RORG    $1400
 
@@ -1011,11 +1014,11 @@ CheckBit6 SUBROUTINE
     bne     .exit                   ;2/3
     lda     jmpIdx                  ;3
     bmi     L14af                   ;2/3        start new sequence
-    dec     counter                 ;5
+    dec     timeCnt                 ;5
     bne     L148d                   ;2/3
-    lda     counter+1               ;3
+    lda     timeCnt+1               ;3
     beq     L149e                   ;2/3        done waiting
-    dec     counter+1               ;5   =  27
+    dec     timeCnt+1               ;5   =  27
 L148d
     lda     jmpIdx                  ;3
     cmp     #$04                    ;2
@@ -1043,9 +1046,9 @@ L149e
 L14af
     lda     GL_START_PULSE          ;4
     lda     #$90                    ;2          1680 (= 315 * 5.33)
-    sta     counter                 ;3
+    sta     timeCnt                 ;3
     lda     #$06                    ;2
-    sta     counter+1               ;3
+    sta     timeCnt+1               ;3
     lda     #0                      ;2
     sta     jmpIdx                  ;3
     lda     #$00                    ;2
@@ -1071,17 +1074,17 @@ DialNumber SUBROUTINE                ;          also from CheckBit6 (jmpIdx = 0)
     cmp     #$0f                    ;2          last digit done?
     bne     L14ed                   ;2/3         no
     ldy     #$04                    ;2          -> jmpIdx
-    ldx     L180e                   ;4          -> counter+1 (=99)
-    lda     #$00                    ;2          -> counter
-    jmp     SetCounterHi            ;3   =  17
+    ldx     L180e                   ;4          -> timeCnt+1 (=99)
+    lda     #$00                    ;2          -> timeCnt
+    jmp     SetTimeCntHi            ;3   =  17
 
 L14ed
     cmp     #$0e                    ;2          ???
     bne     L14fc                   ;2/3
     lda     #$48                    ;2          = 840 (= 315 * 2.66; = 1680 / 2)
-    sta     counter                 ;3
+    sta     timeCnt                 ;3
     lda     #$03                    ;2
-    sta     counter+1               ;3
+    sta     timeCnt+1               ;3
     inc     numberIdx               ;5
     rts                             ;6   =  25  return from CheckBit6
 
@@ -1091,7 +1094,7 @@ L14fc
     lda     dialType                ;3
     bmi     .dialTypeFF             ;2/3
     lda     #$01                    ;2          start dialing
-    sta     ram_DE                  ;3
+    sta     tmpVarDE                ;3
     jmp     L152c                   ;3   =  17
 
 .dialTypeFF
@@ -1104,8 +1107,8 @@ L1510
     lda     dialType                ;3
     bmi     .dialTypeFF             ;2/3
     beq     .dialTypeFF             ;2/3
-    lda     ram_DE                  ;3
-    inc     ram_DE                  ;5
+    lda     tmpVarDE                ;3
+    inc     tmpVarDE                ;5
     jmp     L152c                   ;3   =  22
 
 L1521
@@ -1113,7 +1116,7 @@ L1521
     bne     L152c                   ;2/3
     inc     ram_DF                  ;5          = 1 (error?)    
     inc     numberIdx               ;5          -> $0d
-    inc     counter                 ;5
+    inc     timeCnt                 ;5
     rts                             ;6   =  25  return from CheckBit6, DialNumber
 
 L152c
@@ -1132,9 +1135,9 @@ NextPulse
     sta     AUDF1                   ;3          BUG???
     lda     #$0f                    ;2
     sta     AUDV0                   ;3
-    lda     L1612,y                 ;4          -> counter = 26|52 (60%)
+    lda     L1612,y                 ;4          -> timeCnt = 26|52 (60%)
     ldy     #$01                    ;2          -> jmpIdx
-    jmp     SetCounter              ;3   =  28
+    jmp     SetTimeCnt              ;3   =  28
 
 .toneDial
     tay                             ;2          
@@ -1148,38 +1151,38 @@ NextPulse
     lda     L161a,y                 ;4
     tay                             ;2          Y = $10..$1a (unordered!), tone dialing
     lda     GL_SEND_TONE,y          ;4
-    lda     #$34                    ;2          -> counter = 52
+    lda     #$34                    ;2          -> timeCnt = 52
     ldy     #$03                    ;2          -> jmpIdx
-    jmp     SetCounter              ;3   =  36
+    jmp     SetTimeCnt              ;3   =  36
 
 L156b SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 1)
     lda     GL_START_PULSE          ;4
     lda     #$00                    ;2
     sta     AUDV0                   ;3
     ldy     dialSpeed               ;3
-    lda     L1614,y                 ;4          -> counter = 18|36 (40%)
+    lda     L1614,y                 ;4          -> timeCnt = 18|36 (40%)
     ldy     #$02                    ;2          -> jmpIdx
-    jmp     SetCounter              ;3   =  21
+    jmp     SetTimeCnt              ;3   =  21
 
 L157c SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 2)
     ldy     dialSpeed               ;3
     dec     pulseCount              ;5
     bne     NextPulse               ;2/3
     ldy     dialSpeed               ;3
-    lda     L1616,y                 ;4          -> counter = 315|630
+    lda     L1616,y                 ;4          -> timeCnt = 315|630
     ldx     L1618,y                 ;4
     ldy     #$00                    ;2          -> jmpIdx
     inc     numberIdx               ;5
-    jmp     SetCounterHi            ;3   =  31
+    jmp     SetTimeCntHi            ;3   =  31
 
 L1591 SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 3)
     lda     GL_SEND_TONE            ;4
     lda     #$00                    ;2          stop sound
     sta     AUDV0                   ;3
-    lda     #$34                    ;2          -> counter (52)
+    lda     #$34                    ;2          -> timeCnt (52)
     ldy     #$00                    ;2          -> jmpIdx
     inc     numberIdx               ;5
-    jmp     SetCounter              ;3   =  21
+    jmp     SetTimeCnt              ;3   =  21
 
 L15a1 SUBROUTINE                    ;           also called from CheckBit6 (jmpIdx = 4|5)
     lda     GL_STOP_PULSE           ;4
@@ -1188,10 +1191,10 @@ L15a1 SUBROUTINE                    ;           also called from CheckBit6 (jmpI
     ldy     #$06                    ;2          -> jmpIdx
     lda     #$90                    ;2          1680 (= 315 * 5.33)
     ldx     #$06                    ;2   =  15
-SetCounterHi 
-    stx     counter+1               ;3   =   3
-SetCounter 
-    sta     counter                 ;3
+SetTimeCntHi 
+    stx     timeCnt+1               ;3   =   3
+SetTimeCnt 
+    sta     timeCnt                 ;3
     sty     jmpIdx                  ;3   =   6
 .exit
     rts                             ;6   =   6
@@ -1268,7 +1271,7 @@ HandleInput SUBROUTINE
     lda     ram_A6                  ;3
     bne     L1631                   ;2/3
     ldx     #$0e                    ;2
-    jmp     L16eb                   ;3   =  17
+    jmp     ProcessInput            ;3   =  17  
 
 L1631
     dec     ram_A6                  ;5   =   5
@@ -1276,7 +1279,7 @@ L1633
     lda     inputDelay              ;3
     beq     .contInput              ;2/3
     dec     inputDelay              ;5   =  10
-.exitFire
+.exitInput
     rts                             ;6   =   6
 
 .contInput
@@ -1290,19 +1293,19 @@ L1633
 .checkPressed
     sta     lastFire                ;3
     asl                             ;2          pressed?
-    bcs     .exitFire               ;2/3         no
+    bcs     .exitInput              ;2/3         no
     jsr     SetDelay                ;6
-    jsr     L17e3                   ;6
+    jsr     FirePressed             ;6
     jsr     GetData                 ;6
     bpl     L165e                   ;2/3
-    bvc     L16a9                   ;2/3
+    bvc     StoreDigit              ;2/3
     ldx     #$00                    ;2
-    jmp     L16eb                   ;3   =  34
+    jmp     ProcessInput            ;3   =  34
 
 L165e
-    sta     ram_DE                  ;3
+    sta     tmpVarDE                ;3
     jsr     GetPointer              ;6
-    lsr     ram_DE                  ;5
+    lsr     tmpVarDE                ;5
     bcc     L1672                   ;2/3
     bne     L167d                   ;2/3 =  18
 L1669
@@ -1313,7 +1316,7 @@ L1669
     rts                             ;6   =  17
 
 L1672
-    lsr     ram_DE                  ;5
+    lsr     tmpVarDE                ;5
     bne     L1688                   ;2/3
     sta     dataPtr2+1              ;3
     stx     dataPtr2                ;3   =  13
@@ -1353,7 +1356,7 @@ GetPointer SUBROUTINE
     lda     (dataPtr),y             ;5
     rts                             ;6   =  28
 
-L16a9
+StoreDigit
     tay                             ;2
     lda     xDial                   ;3
     asl                             ;2
@@ -1364,14 +1367,14 @@ L16a9
     bpl     .isDigit                ;2/3
     asl                             ;2
     bmi     .isAsterisk             ;2/3
-    tya                             ;2
+    tya                             ;2          hash
     ldy     ram_D2                  ;3
     jmp     L165e                   ;3   =  32
 
 .isDigit
     ldx     numDigits               ;3
     cpx     #$03                    ;2
-    beq     L16cf                   ;2/3
+    beq     .digitsDone             ;2/3
     sta     digitLst,x              ;4
     inc     numDigits               ;5
     rts                             ;6   =  22
@@ -1382,8 +1385,8 @@ L16a9
 .exit
     rts                             ;6   =   6
 
-L16cf
-    jmp     L17f0                   ;3   =   3
+.digitsDone
+    jmp     DigitsDone              ;3   =   3
 
 SkipFire
     lda     SWCHB                   ;4
@@ -1396,11 +1399,11 @@ SkipFire
     beq     .select                 ;2/3
     bcs     .exit                   ;2/3
     ldx     #$02                    ;2          reset
-    bne     L16eb                   ;3 =  31 *
+    bne     ProcessInput            ;3 =  31 
 
 .select
     ldx     #$04                    ;2   =   2
-L16eb
+ProcessInput
     ldy     #$0c                    ;2
     lda     (dataPtr),y             ;5
     sta     dataPtr2                ;3
@@ -1408,7 +1411,7 @@ L16eb
     lda     (dataPtr),y             ;5
     beq     .exitDir                ;2/3!
     sta     dataPtr2+1              ;3
-    jmp.ind (dataPtr2)              ;5   =  27
+    jmp.ind (dataPtr2)              ;5   =  27  L1c75|???
 
 .skipSwitches
     lda     SWCHA                   ;4
@@ -1437,7 +1440,7 @@ L16eb
     bpl     L172f                   ;2/3
     bvc     L1726                   ;2/3
     ldx     #$0a                    ;2
-    jmp     L16eb                   ;3   =  15
+    jmp     ProcessInput            ;3   =  15
 
 L1726
     lda     yDial                   ;3
@@ -1452,17 +1455,17 @@ L172f
     sty     ram_D2                  ;3
     cpy     #$32                    ;2
     bmi     .exitDir                ;2/3
-    lda     ram_B1                  ;3
+    lda     ram_B2                  ;3
     sec                             ;2
     sbc     ram_D2                  ;3
     cmp     #$0c                    ;2
     beq     L1745                   ;2/3
     bpl     .exitDir                ;2/3 =  29
 L1745
-    ldy     ram_B0                  ;3
+    ldy     ram_B1                  ;3
     jsr     L17a3                   ;6
     bcc     .exitDir                ;2/3
-    sty     ram_B0                  ;3
+    sty     ram_B1                  ;3
     rts                             ;6   =  20
 
 .joyUp
@@ -1470,7 +1473,7 @@ L1745
     bpl     L1762                   ;2/3
     bvc     L175b                   ;2/3
     ldx     #$0c                    ;2
-    jmp     L16eb                   ;3   =  15
+    jmp     ProcessInput            ;3   =  15
 
 L175b
     lda     yDial                   ;3
@@ -1484,13 +1487,13 @@ L1762
     sty     ram_D2                  ;3
     tya                             ;2
     sec                             ;2
-    sbc     ram_B0                  ;3
+    sbc     ram_B1                  ;3
     cmp     #$06                    ;2
     bne     .exitDir                ;2/3
-    ldy     ram_B0                  ;3
+    ldy     ram_B1                  ;3
     jsr     L17b4                   ;6
     bcc     .exitDir                ;2/3
-    sty     ram_B0                  ;3
+    sty     ram_B1                  ;3
     rts                             ;6   =  42
 
 .joyRight
@@ -1506,7 +1509,7 @@ L178a
 
 L178b
     ldx     #$06                    ;2
-    jmp     L16eb                   ;3   =   5
+    jmp     ProcessInput            ;3   =   5
 
 .joyLeft
     jsr     GetData                 ;6
@@ -1520,7 +1523,7 @@ L179d
 
 L179e
     ldx     #$08                    ;2
-    jmp     L16eb                   ;3   =   5
+    jmp     ProcessInput            ;3   =   5
 
 L17a3 SUBROUTINE
     lda     (dataPtr),y             ;5
@@ -1559,9 +1562,9 @@ DialPadNums
 GetData SUBROUTINE
     ldy     ram_D2                  ;3
     lda     (dataPtr),y             ;5
-    sta     ram_DE                  ;3
+    sta     tmpVarDE                ;3
     and     #$0f                    ;2
-    bit     ram_DE                  ;3
+    bit     tmpVarDE                ;3
     rts                             ;6   =  22
 
 SetDelay SUBROUTINE
@@ -1571,28 +1574,32 @@ SetDelay SUBROUTINE
     pla                             ;4
     rts                             ;6   =  18
 
-L17e3 SUBROUTINE
-    lda     #<L17f7                 ;2
-    ldx     #>L17f7                 ;2   =   4
-L17e7
-    sta     ram_B4                  ;3
-    stx     ram_B5                  ;3
+FirePressed SUBROUTINE
+    lda     #<FirePressedPtr        ;2
+    ldx     #>FirePressedPtr        ;2   =   4
+.setPtr
+    sta     unusedPtr               ;3          this sets a pointer which is nowhere used
+    stx     unusedPtr+1             ;3
     lda     #$01                    ;2
-    sta     ram_B7                  ;3
+    sta     unusedFlag              ;3
     rts                             ;6   =  17
 
-L17f0
-    lda     #<L17fb                 ;2
-    ldx     #>L17fb                 ;2
-    jmp     L17e7                   ;3   =   7
+DigitsDone
+    lda     #<DigitsDonePtr         ;2
+    ldx     #>DigitsDonePtr         ;2
+    jmp     .setPtr                 ;3   =   7
 
-L17f7
+FirePressedPtr
     .byte   $86,$c1,$3f,$88                 ; $17f7 (D)
-L17fb
+DigitsDonePtr
     .byte   $86,$c6,$9f,$fe                 ; $17fb (D)
     .byte   $88                             ; $17ff (D)
 
-;###############################################################################
+
+;***********************************************************
+;      Bank 2
+;***********************************************************
+; 1K ROM bank #2
 
 ram_C0          = $c0               ;   used differently here
 ram_C1          = $c1               ;   used differently here
@@ -1642,7 +1649,7 @@ L1439
 ; no clue...:
     lda     ram_DB                  ;3         
     bmi     L1443                   ;2/3       
-    jsr     L169f                   ;6         
+    jsr     SendLoadHeader10        ;6         
     jsr     EndSend                 ;6   =  17 
 L1443
     jsr     L149e                   ;6         
@@ -1719,7 +1726,7 @@ LoadData SUBROUTINE
     jsr     StoreByte               ;6         
     jmp     .loopBytes              ;3   =  25 
     
-.failed
+.failed ; or done
     dec     retryCnt                ;5         
     bpl     .retryLoop              ;2/3       
     lda     #$00                    ;2         
@@ -1728,7 +1735,7 @@ LoadData SUBROUTINE
     rts                             ;6   =  20 
     
 SendHeader SUBROUTINE
-    jsr     L14f0                   ;6         
+    jsr     InitialWait             ;6         
     jsr     ResetCRC                ;6         
     lda     #$aa                    ;2         
     jsr     TransferByte            ;6         
@@ -1760,7 +1767,7 @@ EndSend SUBROUTINE
 .found
     rts                             ;6   =   6 
     
-L14f0 SUBROUTINE
+InitialWait SUBROUTINE
     jsr     Wait4Low                ;6         
     lda     GL_CBB                  ;4         
     jsr     Wait100ms               ;6         
@@ -1777,7 +1784,7 @@ Wait4Low SUBROUTINE
     ldy     #$01                    ;2   =   2 
 L1503
     lda     #50                     ;2         
-    sta     ram_DE                  ;3         
+    sta     tmpVarDE                ;3         
     ldx     WaitTbl2,y              ;4   =   9  0|50
 .retry
     lda     #$ff                    ;2          -> ~219ms
@@ -1793,7 +1800,7 @@ L1503
     jmp     .loopWait               ;3   =  25 
     
 .waitDone
-    dec     ram_DE                  ;5         
+    dec     tmpVarDE                ;5         
     bne     .retry                  ;2/3       
     sec                             ;2         
     rts                             ;6   =  15 
@@ -1908,7 +1915,7 @@ AdjustSpeed SUBROUTINE
     sta     transferByte            ;3         
     sta     speedIdx                ;3         
     lda     #$07                    ;2         
-    sta     ram_DE                  ;3   =  19 
+    sta     tmpVarDE                ;3   =  19 
 L15cc
     lda     TIM8T                   ;4         
     bpl     L15d7                   ;2/3       
@@ -1956,7 +1963,7 @@ L15ec
     ror                             ;2   =  62 
 L161b
     sta     .speedTmp               ;3         
-    dec     ram_DE                  ;5         
+    dec     tmpVarDE                ;5         
     bne     L15e3                   ;2/3!      
     ldx     #$03                    ;2         
     lda     .speedTmp               ;3   =  15 
@@ -1970,8 +1977,8 @@ L1625
     clc                             ;2         
     adc     TIM1T                   ;4         
     sta     TIM8T                   ;4         
-    inc     loadFlag                ;5         
-    jsr     L17c8                   ;6   =  40 
+    inc     loadFlag                ;5          enable load flag     
+    jsr     InitStoreD7             ;6   =  40 
 L1640
     lda     TIM8T                   ;4         
     bpl     L1640                   ;2/3       
@@ -2026,7 +2033,7 @@ L167e
 Pot2Tbl
     .byte   $01,$02,$04,$08,$10,$20,$40,$80 ; $1697 (D)
     
-L169f SUBROUTINE
+SendLoadHeader10 SUBROUTINE
     jsr     SendHeader              ;6         
     lda     #$10                    ;2         
     jsr     SendByte                ;6         
@@ -2043,7 +2050,7 @@ L169f SUBROUTINE
     
 StoreByte SUBROUTINE
 ; A = stored byte
-    bit     ram_C8                  ;3         
+    bit     storeFlags              ;3         
     bmi     L16e0                   ;2/3       
     ldy     #$00                    ;2         
     sta     (dataPtr2),y            ;6              = L1308..|(L180a)
@@ -2055,29 +2062,29 @@ StoreByte SUBROUTINE
     bne     L16d7                   ;2/3       
     inc     dataPtr2+1              ;5   =  39 
 L16d7
-    dec     ram_C9                  ;5         
+    dec     storeCnt                ;5         
     beq     L16dc                   ;2/3       
     rts                             ;6   =  13 
     
 L16dc
     sec                             ;2         
-    ror     ram_C8                  ;5         
+    ror     storeFlags              ;5         
     rts                             ;6   =  13 
     
 L16e0
-    ldy     #$00                    ;2              hi
+    ldy     #$00                    ;2          hi
     bvc     L16e5                   ;2/3       
-    iny                             ;2   =   6      lo
+    iny                             ;2   =   6  lo
 L16e5
     cmp.wy  crcLst,y                ;4         
     beq     L16ed                   ;2/3 =   6 
 L16ea
-    dec     loadFlag                ;5         
+    dec     loadFlag                ;5          disable load flag  
     rts                             ;6   =  11 
     
 L16ed
     bvc     L16dc                   ;2/3       
-    lda     ram_C8                  ;3         
+    lda     storeFlags              ;3         
     and     #$0f                    ;2         
     beq     L16f8                   ;2/3       
     jmp     L171e                   ;3   =  12 
@@ -2088,7 +2095,7 @@ L16f8
     bne     L16ea                   ;2/3       
     lda     ram_DA                  ;3         
     beq     L171e                   ;2/3       
-    sta     ram_C9                  ;3         
+    sta     storeCnt                ;3         
     lda     ram_DB                  ;3         
     and     #$0f                    ;2         
     tax                             ;2         
@@ -2099,12 +2106,12 @@ L16f8
     lda     ram_DC                  ;3         
     sta     dataPtr2                ;3         
     lda     #$08                    ;2         
-    sta     ram_C8                  ;3         
+    sta     storeFlags              ;3         
     jsr     ResetCRC                ;6         
     rts                             ;6   =  58 
     
 L171e
-    dec     loadFlag                ;5         
+    dec     loadFlag                ;5          disable load flag    
     lda     ram_D9                  ;3         
     and     #$f0                    ;2         
     cmp     #$30                    ;2         
@@ -2114,7 +2121,7 @@ L171e
     and     #$04                    ;2         
     beq     .exit                   ;2/3 =  27 
 L1731
-    jsr     L169f                   ;6         
+    jsr     SendLoadHeader10        ;6         
     jsr     EndSend                 ;6   =  12 
 .exit
     rts                             ;6   =   6 
@@ -2126,7 +2133,7 @@ L1738
     sta     bitSet                  ;3         
     lda     ram_DB                  ;3         
     bpl     L1747                   ;2/3       
-    jsr     L169f                   ;6   =  20 
+    jsr     SendLoadHeader10        ;6   =  20 
 L1747
     lsr     ram_D9                  ;5         
     bcs     L1750                   ;2/3       
@@ -2156,11 +2163,11 @@ L175d
     tax                             ;2         
     lda     SL3_BX,x                ;4         
     ldx     #$06                    ;2   =  57 
-L1781
+.loopCopy
     lda     RamCode,x               ;4         
     sta     ramCode,x               ;4         
     dex                             ;2         
-    bpl     L1781                   ;2/3       
+    bpl     .loopCopy               ;2/3       
     lda     ram_DC                  ;3         
     and     #$0f                    ;2         
     tax                             ;2         
@@ -2206,15 +2213,15 @@ Div16 SUBROUTINE
     lsr                             ;2         
     rts                             ;6   =  14 
     
-L17c8 SUBROUTINE
+InitStoreD7 SUBROUTINE
     lda     #$00                    ;2         
-    sta     ram_C8                  ;3         
+    sta     storeFlags              ;3         
     lda     #<ram_D7                ;2         
     sta     dataPtr2                ;3         
     lda     #>ram_D7                ;2         
     sta     dataPtr2+1              ;3         
     lda     #$07                    ;2         
-    sta     ram_C9                  ;3         
+    sta     storeCnt                ;3         
     jsr     ResetCRC                ;6         
     rts                             ;6   =  32 
     
@@ -2242,18 +2249,22 @@ SendByte SUBROUTINE
 
     .byte   $4f,$4f,$00,$00,$4f,$4f,$06,$05 ; $17f8 (D)
 
-;###############################################################################
+
+;***********************************************************
+;      Bank 3
+;***********************************************************
+; 1K ROM bank #3
 
     RORG    $1c00                           ;               code for slice 3/3
 
 L1c00
     .byte   $c1                             ; $1c00 (D) ram_AF
-    .byte   $1e                             ; $1c01 (D) ram_D2+ram_B0
-    .byte   $00,$00,$00,$00                 ; $1c02 (D) ram_C6, jmpIdx, counter, counter+1
+    .byte   $1e                             ; $1c01 (D) ram_D2+ram_B1
+    .byte   $00,$00,$00,$00                 ; $1c02 (D) ram_C6, jmpIdx, timeCnt, timeCnt+1
     .word   MessagePtrs                     ; $1c06
     .byte   $64                             ; $1c08 -> TIM64T
     .byte   $89                             ; $1c09 -> TIM64T
-    .byte   $7f                             ; $1c0a -> ram_B3
+    .byte   $7f                             ; $1c0a -> ram_B0
     .byte   $0a                             ; $1c0b -> WaitLines
     .word   L1c75                               
     .byte   $00,$00,$00                     ; $1c0e (D)    ? ? dataPtr2
@@ -2349,9 +2360,9 @@ L1c74
     rts                             ;6   =   6
 
 L1c75 SUBROUTINE
-    cpx     #$02                    ;2
-    beq     L1c7a                   ;2/3
-    rts                             ;6   =  10
+    cpx     #$02                    ;2              RESET?
+    beq     L1c7a                   ;2/3             yes
+    rts                             ;6   =  10       no, ignore
 
 L1c7a
     ldy     SL2_W1                  ;4              switch RAM bank 1 into slice 2 for writing (L1800..)
@@ -2500,12 +2511,12 @@ DrawDialPad SUBROUTINE
     clc                             ;2
     adc     #DIGIT_H                ;2
     sta     ram_87                  ;3
-    sty     ram_DE                  ;3
+    sty     tmpVarDE                ;3
     jsr     L19a7                   ;6
     jsr     DrawDialDigits          ;6
     ldx     #$03                    ;2
     jsr     WaitLines               ;6
-    ldy     ram_DE                  ;3
+    ldy     tmpVarDE                ;3
     iny                             ;2
     lda     ram_86                  ;3
     cmp     #DIGIT_H*3+1            ;2
@@ -2777,16 +2788,16 @@ BlockGfx
     .byte   %11111111 ; |########|            $1ab1 (G)
     .byte   %00000000 ; |        |            $1ab2 (G)
 DigitPtr
-    .byte   ZeroGfx-DigitGfx                ; $1ab3 (D)  
-    .byte   OneGfx-DigitGfx   
-    .byte   TwoGfx-DigitGfx   
-    .byte   ThreeGfx-DigitGfx
-    .byte   FourGfx-DigitGfx  
-    .byte   FiveGfx-DigitGfx  
-    .byte   SixGfx-DigitGfx
-    .byte   SevenGfx-DigitGfx 
-    .byte   EightGfx-DigitGfx 
-    .byte   NineGfx-DigitGfx
+    .byte   ZeroGfx  - DigitGfx             ; $1ab3 (D)  
+    .byte   OneGfx   - DigitGfx   
+    .byte   TwoGfx   - DigitGfx   
+    .byte   ThreeGfx - DigitGfx
+    .byte   FourGfx  - DigitGfx  
+    .byte   FiveGfx  - DigitGfx  
+    .byte   SixGfx   - DigitGfx
+    .byte   SevenGfx - DigitGfx 
+    .byte   EightGfx - DigitGfx 
+    .byte   NineGfx  - DigitGfx
 ; ??? TODO
     .byte   $d3,$cc,$ef,$f4,$16,$00         ; $1abd (D)
     .byte   $06,$d3,$e1,$d6,$c5,$04,$12,$00 ; $1ac3 (D)
@@ -2796,25 +2807,25 @@ DigitPtr
 
     RORG    . - $800                ;           code for slice 0/3
 
-L12d0
+L12d0 SUBROUTINE
     lda     #%01111111              ;2
-    ldx     #$08                    ;2
+    ldx     #$08                    ;2          noise
     ldy     #$ff                    ;2
     sty     AUDV0                   ;3
     ldy     #$01                    ;2
     sty     AUDC0                   ;3
-L12dc
+.loop
     sta     PF1                     ;3
     sta     PF2                     ;3
     stx     AUDF0                   ;3
     jsr     Wait100ms               ;6
     cmp     #$00                    ;2
-    beq     L12ee                   ;2/3
+    beq     .exit                   ;2/3
     dex                             ;2
     lsr                             ;2
-    jmp     L12dc                   ;3   =  40
+    jmp     .loop                   ;3   =  40
 
-L12ee
+.exit
     sta     AUDV0                   ;3
     rts                             ;6   =   9
 
@@ -2830,7 +2841,7 @@ SendLoadHeader20 SUBROUTINE
     jmp     .uninitialized          ;3   =  31
 
 L1308
-    brk                             ;7   =   7
+    brk                             ;7   =   7  number of extra bytes to send
 
 .isInitialized
     lda     L180a                   ;4
@@ -2843,32 +2854,32 @@ L1308
     clc                             ;2
     adc     #$05                    ;2
     jsr     SendByte                ;6
-    lda     ram_D2                  ;3
+    lda     ram_D2                  ;3          = $00|$10
     jsr     SendByte                ;6
-    lda     ram_D3                  ;3
+    lda     ram_D3                  ;3          = $00
     jsr     SendByte                ;6
     lda     dialSpeed               ;3
     asl                             ;2
     asl                             ;2
     asl                             ;2
     asl                             ;2
-    sta     ram_DE                  ;3
+    sta     tmpVarDE                ;3
     lda     dialType                ;3
     and     #$0f                    ;2
-    ora     ram_DE                  ;3
+    ora     tmpVarDE                ;3
     jsr     SendByte                ;6          
     jsr     SendCRC                 ;6
     jsr     SetDelay                ;6
     ldy     #$00                    ;2   =  91
 .loopSendA
-    lda     $1fda,y                 ;4              serial number from PROM? (..$1fdf)
+    lda     $1fda,y                 ;4          serial number from PROM? (..$1fdf)
     jsr     SendByte                ;6
     iny                             ;2
     cpy     #$05                    ;2
     bne     .loopSendA              ;2/3
     ldy     #$00                    ;2
-    lda     (dataPtr2),y            ;5              number of bytes to send
-    beq     L135b                   ;2/3
+    lda     (dataPtr2),y            ;5          number of bytes to send
+    beq     .skipInitialized        ;2/3
     tax                             ;2   =  27
 .loopSend
     iny                             ;2
@@ -2876,7 +2887,7 @@ L1308
     jsr     SendByte                ;6
     dex                             ;2
     bne     .loopSend               ;2/3 =  17
-L135b
+.skipInitialized
     jsr     SendCRC                 ;6
     jsr     EndSend                 ;6
     rts                             ;6   =  18
