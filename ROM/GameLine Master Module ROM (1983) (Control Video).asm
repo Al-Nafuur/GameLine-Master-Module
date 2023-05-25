@@ -26,7 +26,7 @@
 ; A S S E M B L E R - S W I T C H E S
 ;===============================================================================
 
-ORIGINAL        = 0         ; 1 = compile 100% identical to dump
+ORIGINAL        = 1         ; 1 = compile 100% identical to dump
 
 
 ;===============================================================================
@@ -157,23 +157,25 @@ T1024T          = $0297
 ;      RIOT RAM (zero-page) labels
 ;-----------------------------------------------------------
 
-ram_80          = $80       ; always 1
-slice1Bank      = $81       ; X for SL1_BX,x (X = 2)
-slice2Bank      = $82       ; X for SL2_BX,x (X = 4, ?)
-slice3Bank      = $83       ; X for SL3_BX,x (X = 13|0)
-ram_84          = $84
-ram85Lst        = $85       ; ..$8a
-ram_85          = ram85Lst
-ram_86          = ram85Lst+1
-ram_87          = ram85Lst+2
-ram_88          = ram85Lst+3
-
-ram_8B          = $8b
-ram_8C          = $8c       ; temp. var
-color           = $8d
-frameCnt        = $8e       ; frame timeCnt
+ram_80          = $80           ; always 1, never read
+slice1Bank      = $81           ; X for SL1_BX,x (X = 2)
+slice2Bank      = $82           ; X for SL2_BX,x (X = 4, ?)
+slice3Bank      = $83           ; X for SL3_BX,x (X = 13|0)
 ;---------------------------------------
-ptrLst          = $8f
+drawPtrIdx      = $84
+drawLst         = $85           ; ..$8a
+drawFlags       = drawLst
+drawIdx         = drawLst+1
+drawEnd         = drawLst+2
+drawGap         = drawLst+3    ; = $88
+
+drawPos         = $8b
+;---------------------------------------
+tmpGfx          = $8c           ; temp. var
+color           = $8d
+frameCnt        = $8e           ; frame timeCnt
+;---------------------------------------
+ptrLst          = $8f           ; ..$9a
 ram_8F          = ptrLst
 ram_90          = ptrLst+1
 ram_91          = ptrLst+2
@@ -186,36 +188,36 @@ ram_97          = ptrLst+8
 ram_98          = ptrLst+9
 ram_99          = ptrLst+10
 ram_9A          = ptrLst+11
-;---------------------------------------
-ramCode          = ptrLst
 
+ramCode         = ptrLst
+;---------------------------------------
 flashTimer      = $9b
 flashState      = $9c
 yDial           = $9d
 xDial           = $9e
 numDigits       = $9f
-ram_A0          = $a0
+drawEndCopy     = $a0
 lastFire        = $a1
 lastSwitches    = $a2
 lastJoyDir      = $a3
 inputDelay      = $a4
-ram_A5          = $a5       ; only decreased
-ram_A6          = $a6       ; input related
+inputLo         = $a5           ; only decreased
+inputHi         = $a6           ; input related
 ;---------------------------------------
-digitLst        = $a7   ; ..$a9
+digitLst        = $a7           ; ..$a9
 digit0          = digitLst        
 digit1          = digitLst+1
 digit2          = digitLst+2
 ;---------------------------------------
 
-dataPtr         = $ab   ;..$ac
-dataPtr2        = $ad   ;..$ae
+dataPtr         = $ab           ;..$ac
+dataPtr2        = $ad           ;..$ae
 ram_AF          = $af
-ram_B0          = $b0
+drawBtm         = $b0
 ram_B1          = $b1
 ram_B2          = $b2
 ram_B3          = $b3
-unusedPtr       = $b4   ;..$b5
+unusedPtr       = $b4           ;..$b5
 slice3BankB     = $b6
 unusedFlag      = $b7
 
@@ -224,24 +226,24 @@ jmpIdx          = $bb
 dialCount       = $bc
 numberIdx       = $bd
 numberPtrIdx    = $be
-dialType        = $bf   ; unsure!
-timeCnt         = $c0   ;..$c1 (*1000 = ~cylces), also used for an unused pointer
-numberPtr       = $c2   ;..$c3
-dialSpeed       = $c4   ; also type
+dialType        = $bf           ; unsure!
+timeCnt         = $c0           ;..$c1 (*1000 = ~cylces), also used for an unused pointer
+numberPtr       = $c2           ;..$c3
+dialSpeed       = $c4           ; also type
 
-ram_C6          = $c6   ; never read, written once
+ram_C6          = $c6           ; never read, written once
 retryCnt        = $c7
 storeFlags      = $c8
 storeCnt        = $c9
-crcLst          = $ca   ; ..$cb
+crcLst          = $ca           ; ..$cb
 crcHi           = crcLst
 crcLo           = crcLst+1
-bitIdx          = $cc   ; = $db / 16
+bitIdx          = $cc           ; = $db / 16
 bitSet          = $cd
 transferByte    = $ce
-loadFlag        = $cf   ; 0|1
-ram_D0          = $d0   ; increased once (hi)
-ram_D1          = $d1   ; increased once (low)
+loadFlag        = $cf           ; 0|1
+ram_D0          = $d0           ; increased once (hi)
+ram_D1          = $d1           ; increased once (low)
 ram_D2          = $d2
 ram_D3          = $d3
 animState       = $d4   
@@ -250,10 +252,10 @@ xCurtain        = $d6
 ram_D7          = $d7
 ram_D8          = $d8
 ram_D9          = $d9
-ram_DA          = $da   ; loaded only via ($d7),y; -> storeCnt
-ram_DB          = $db   ; ????2222 ?, bank into slice 2
-ram_DC          = $dc   ; 00001111 -> banks into slices 0/1
-ram_DD          = $dd   ; 22223333 -> banks into slices 2/3
+ram_DA          = $da           ; loaded only via ($d7),y; -> storeCnt
+ram_DB          = $db           ; ????2222 ?, bank into slice 2
+ram_DC          = $dc           ; 00001111 -> banks into slices 0/1
+ram_DD          = $dd           ; 22223333 -> banks into slices 2/3
 tmpVarDE        = $de
 ram_DF          = $df
 speedIdx        = $e0
@@ -380,20 +382,20 @@ L1061
     lda     (ram_95),y              ;5
     tax                             ;2
     lda     (ram_97),y              ;5
-    ldy     ram_8C                  ;3
+    ldy     tmpGfx                  ;3
     stx     GRP1                    ;3
     sta     GRP0                    ;3
     sty     GRP1                    ;3
     sta     GRP0                    ;3
-    inc     ram_86                  ;5   =  51
+    inc     drawIdx                 ;5   =  51
 Draw48Pixel
-    ldy     ram_86                  ;3
+    ldy     drawIdx                 ;3
     lda     (ram_99),y              ;5
-    sta     ram_8C                  ;3
+    sta     tmpGfx                  ;3
     lda     (ram_8F),y              ;5
     sta     WSYNC                   ;3   =  19
 ;---------------------------------------
-    cpy     ram_87                  ;3
+    cpy     drawEnd                 ;3
     bne     .loop                   ;2/3
     lda     #$00                    ;2
     sta     GRP0                    ;3
@@ -493,7 +495,7 @@ L1134
     jsr     XPosSprites             ;6
     ldy     #$0a                    ;2          Y = $a
     lda     (dataPtr),y             ;5          $1c0a = $7f; $1812 = 
-    sta     ram_B0                  ;3
+    sta     drawBtm                 ;3
     ldy     #$02                    ;2          Y = 2
     lda     (dataPtr),y             ;5          $1c02 = $00; $180a = 
     beq     L1178                   ;2/3
@@ -569,12 +571,12 @@ L11cb
     jsr     WaitLines               ;6   =  22
 L11d9
     asl                             ;2
-    sta     ram_8B                  ;3
+    sta     drawPos                 ;3
     ldy     #$14                    ;2
-    sty     ram_84                  ;3   =  10
+    sty     drawPtrIdx              ;3   =  10
 L11e0
-    jsr     L1326                   ;6
-    lda     ram_85                  ;3
+    jsr     FillRam85Lst            ;6
+    lda     drawFlags               ;3
     bmi     L122a                   ;2/3!
     beq     L11f5                   ;2/3
     cpy     ram_D2                  ;3
@@ -586,29 +588,29 @@ L11e0
     lda     #$fe                    ;2
     sta     PF1                     ;3   =  37
 L11f5 ;.loop?
-    lda     ram_87                  ;3
+    lda     drawEnd                 ;3
     clc                             ;2
-    adc     ram_8B                  ;3
+    adc     drawPos                 ;3
     adc     #$02                    ;2
-    cmp     ram_B0                  ;3
+    cmp     drawBtm                 ;3
     bcs     L1271                   ;2/3
-    sta     ram_8B                  ;3
-    lda     ram_87                  ;3
+    sta     drawPos                 ;3
+    lda     drawEnd                 ;3
     clc                             ;2
-    adc     ram_86                  ;3
-    sta     ram_87                  ;3
+    adc     drawIdx                 ;3
+    sta     drawEnd                 ;3
     jsr     Draw48Pixel             ;6
     lda     #$00                    ;2
     sta     PF1                     ;3   =  40
 L1210
-    lda     ram_88                  ;3
+    lda     drawGap                 ;3
     beq     L1227                   ;2/3
     tax                             ;2
     clc                             ;2
-    adc     ram_8B                  ;3
-    cmp     ram_B0                  ;3
+    adc     drawPos                 ;3
+    cmp     drawBtm                 ;3
     bcs     L1271                   ;2/3
-    sta     ram_8B                  ;3
+    sta     drawPos                 ;3
     jsr     WaitLines               ;6
     jsr     L10b3                   ;6
     jsr     SetupBanks              ;6   =  38
@@ -616,7 +618,7 @@ L1227
     jmp     L11e0                   ;3   =   3
 
 L122a
-    asl                             ;2
+    asl                             ;2          A = drawFlags
     bmi     L123c                   ;2/3
     lda     SL2_B3                  ;4          switch ROM bank 3 into slice 2
     jsr     DrawDialPad             ;6
@@ -625,7 +627,7 @@ L122a
     jmp     L1210                   ;3   =  29
 
 L123c
-    asl                             ;2
+    asl                             ;2          A = drawFlags << 1
     bmi     L1261                   ;2/3
 ; setup 48 pixel pointers:
     ldy     #$06                    ;2
@@ -641,19 +643,19 @@ L123c
     iny                             ;2
     cpy     #$0c                    ;2
     bne     .loop                   ;2/3
-    jsr     GetHiPtrBank            ;6      A -> A, X
+    jsr     GetHiPtrBank            ;6          A -> A, X
     sta     ram_9A                  ;3
-    lda     SL3_BX,x                ;4      X = (dataPtr2),y / 16
+    lda     SL3_BX,x                ;4          X = (dataPtr2),y / 16
     jmp     L11f5                   ;3   =  32
 
 L1261
-    asl                             ;2
+    asl                             ;2          A = drawFlags << 2
     bmi     L126d                   ;2/3
-    jsr     L126a                   ;6
+    jsr     .jmp2Ptr                ;6
     jmp     L1210                   ;3   =  13
 
-L126a
-    jmp.ind (ram_86)                ;5   =   5
+.jmp2Ptr
+    jmp.ind (drawIdx)               ;5   =   5  
 
 L126d
     lda     #$ff                    ;2
@@ -775,26 +777,26 @@ GetHiPtrBank SUBROUTINE
     ora     #$10                    ;2
     rts                             ;6   =  27
 
-L1326 SUBROUTINE
+FillRam85Lst SUBROUTINE
     ldx     #$00                    ;2
-    ldy     ram_84                  ;3
+    ldy     drawPtrIdx              ;3
     lda     (dataPtr),y             ;5
     bmi     .loop                   ;2/3
     beq     .loop                   ;2/3
     lda     ram_B3                  ;3
     bne     .loop                   ;2/3
     ldy     ram_B1                  ;3
-    sty     ram_84                  ;3
+    sty     drawPtrIdx              ;3
     sty     ram_B3                  ;3   =  28
 .loop
     lda     (dataPtr),y             ;5
-    sta     ram85Lst,x              ;4
+    sta     drawLst,x               ;4
     iny                             ;2
     inx                             ;2
     cpx     #$06                    ;2
     bne     .loop                   ;2/3
-    lda     ram_84                  ;3
-    sty     ram_84                  ;3
+    lda     drawPtrIdx              ;3
+    sty     drawPtrIdx              ;3
     sty     ram_B2                  ;3
     tay                             ;2
     rts                             ;6   =  34
@@ -848,7 +850,7 @@ L139a
     lda     #$00                    ;2
     sta     dialCount               ;3
     sta     numberPtrIdx            ;3
-    jsr     L146d                   ;6   =  14
+    jsr     RestoreDialData         ;6   =  14
 L13a3
     ldx     #$00                    ;2
     stx     frameCnt                ;3
@@ -891,9 +893,9 @@ L13d7
     jsr     WaitLines               ;6
     jsr     L1400                   ;6
     lda     #$00                    ;2
-    sta     ram_86                  ;3
+    sta     drawIdx                 ;3
     lda     #$07                    ;2
-    sta     ram_87                  ;3
+    sta     drawEnd                 ;3
     jsr     Draw48Pixel             ;6
     jsr     L1435                   ;6          check bits?
     ldx     #$0c                    ;2
@@ -1001,7 +1003,7 @@ CallingGfx
     .byte   %00000000 ; |        |            $146b (G)
     .byte   %00000000 ; |        |            $146c (G)
 
-L146d SUBROUTINE
+RestoreDialData SUBROUTINE
     lda     SL2_R1                  ;4          switch RAM bank 1 into slice 2 for reading (L1800..)
     lda     L180c                   ;4          restore dialType and speed
     sta     dialType                ;3
@@ -1076,7 +1078,7 @@ DialNumber SUBROUTINE                ;          also from CheckBit6 (jmpIdx = 0)
     ldy     #$04                    ;2          -> jmpIdx
     ldx     L180e                   ;4          -> timeCnt+1 (=99)
     lda     #$00                    ;2          -> timeCnt
-    jmp     SetTimeCntHi            ;3   =  17
+    jmp     SetTimeCnt              ;3   =  17
 
 L14ed
     cmp     #$0e                    ;2          ???
@@ -1137,7 +1139,7 @@ NextPulse
     sta     AUDV0                   ;3
     lda     L1612,y                 ;4          -> timeCnt = 26|52 (60%)
     ldy     #$01                    ;2          -> jmpIdx
-    jmp     SetTimeCnt              ;3   =  28
+    jmp     SetTimeCntLo            ;3   =  28
 
 .toneDial
     tay                             ;2          
@@ -1153,7 +1155,7 @@ NextPulse
     lda     GL_SEND_TONE,y          ;4
     lda     #$34                    ;2          -> timeCnt = 52
     ldy     #$03                    ;2          -> jmpIdx
-    jmp     SetTimeCnt              ;3   =  36
+    jmp     SetTimeCntLo            ;3   =  36
 
 L156b SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 1)
     lda     GL_START_PULSE          ;4
@@ -1162,18 +1164,18 @@ L156b SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 
     ldy     dialSpeed               ;3
     lda     L1614,y                 ;4          -> timeCnt = 18|36 (40%)
     ldy     #$02                    ;2          -> jmpIdx
-    jmp     SetTimeCnt              ;3   =  21
+    jmp     SetTimeCntLo            ;3   =  21
 
 L157c SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 2)
     ldy     dialSpeed               ;3
     dec     pulseCount              ;5
     bne     NextPulse               ;2/3
     ldy     dialSpeed               ;3
-    lda     L1616,y                 ;4          -> timeCnt = 315|630
-    ldx     L1618,y                 ;4
+    lda     PulseGapLo,y            ;4          -> timeCnt = 315|630
+    ldx     PulseGapHi,y            ;4
     ldy     #$00                    ;2          -> jmpIdx
     inc     numberIdx               ;5
-    jmp     SetTimeCntHi            ;3   =  31
+    jmp     SetTimeCnt              ;3   =  31
 
 L1591 SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 3)
     lda     GL_SEND_TONE            ;4
@@ -1182,7 +1184,7 @@ L1591 SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 
     lda     #$34                    ;2          -> timeCnt (52)
     ldy     #$00                    ;2          -> jmpIdx
     inc     numberIdx               ;5
-    jmp     SetTimeCnt              ;3   =  21
+    jmp     SetTimeCntLo            ;3   =  21
 
 L15a1 SUBROUTINE                    ;           also called from CheckBit6 (jmpIdx = 4|5)
     lda     GL_STOP_PULSE           ;4
@@ -1191,9 +1193,9 @@ L15a1 SUBROUTINE                    ;           also called from CheckBit6 (jmpI
     ldy     #$06                    ;2          -> jmpIdx
     lda     #$90                    ;2          1680 (= 315 * 5.33)
     ldx     #$06                    ;2   =  15
-SetTimeCntHi 
+SetTimeCnt   
     stx     timeCnt+1               ;3   =   3
-SetTimeCnt 
+SetTimeCntLo 
     sta     timeCnt                 ;3
     sty     jmpIdx                  ;3   =   6
 .exit
@@ -1227,8 +1229,8 @@ L15ce
 L15d8
     ldx     #$ff                    ;2
     txs                             ;2
-    jsr     L10c9                   ;6
-    jsr     L146d                   ;6
+    jsr     L10c9                   ;6          load data???
+    jsr     RestoreDialData         ;6
     lda     #$00                    ;2
     sta     PF0                     ;3
     sta     PF1                     ;3
@@ -1254,9 +1256,9 @@ L1612
 L1614
     .byte   $12,$24                         ; $1614 (D) 18, 36
 
-L1616
+PulseGapLo
     .byte   $3b,$76                         ; $1616 (D) 315, 630
-L1618
+PulseGapHi
     .byte   $01,$02                         ; $1618 (D)
 
 L161a ; fake tone dialing sound frequencies:
@@ -1266,15 +1268,15 @@ L161a ; fake tone dialing sound frequencies:
     .byte   $1a                             ; $1622 (D)
 
 HandleInput SUBROUTINE
-    dec     ram_A5                  ;5
+    dec     inputLo                 ;5          
     bne     L1633                   ;2/3
-    lda     ram_A6                  ;3
+    lda     inputHi                 ;3
     bne     L1631                   ;2/3
-    ldx     #$0e                    ;2
+    ldx     #$0e                    ;2          trigger some special code after 256 (and every 65536) frames
     jmp     ProcessInput            ;3   =  17  
 
 L1631
-    dec     ram_A6                  ;5   =   5
+    dec     inputHi                 ;5   =   5
 L1633
     lda     inputDelay              ;3
     beq     .contInput              ;2/3
@@ -1841,7 +1843,7 @@ TransferByte SUBROUTINE
 .loop
     lda     TIM8T                   ;4         
     bpl     .loop                   ;2/3       
-    lda     #$85                    ;2         
+    lda     #$85                    ;2              = 1064 + ~31 = ~1095 cycles = ~1 ms.      
     sta     TIM8T                   ;4         
     ror     transferByte            ;5         
     bcs     .bitSet                 ;2/3       
@@ -2382,7 +2384,7 @@ L1c7a
     jmp     L13a3                   ;3   =  37
 
 L1c9a
-    .byte   $63                     ;       L180e
+    .byte   99                      ;       L180e   -> timeCnt+1
     jmp     (L1403)                 ;       L180f   -> LoadByte (called via jmp $100f)
     .word   PhoneNum                ;       L1812   -> numberPtr
     .word   $ffff                   ;       L1814   -> 2nd numberPtr
@@ -2404,18 +2406,18 @@ Check1800 SUBROUTINE
     sta     dataPtr2+1              ;3
     ldy     #<L1800                 ;2
     sty     dataPtr2                ;3
-    tya                             ;2   =  24      = 0
+    tya                             ;2   =  24  = 0
 .loop
     clc                             ;2
-    adc     (dataPtr2),y            ;5              undefined! 
+    adc     (dataPtr2),y            ;5          undefined! 
     inc     dataPtr2                ;5
     bne     .skipHi                 ;2/3
     inc     dataPtr2+1              ;5   =   9
 .skipHi
-    ldx     L1800                   ;4              undefined! 
+    ldx     L1800                   ;4          undefined! 
     cpx     dataPtr2                ;3
     bne     .loop                   ;2/3
-    ldx     L1801                   ;4              undefined! 
+    ldx     L1801                   ;4          undefined! 
     cpx     dataPtr2+1              ;3
     bne     .loop                   ;2/3
   IF ORIGINAL
@@ -2456,37 +2458,37 @@ DDD SUBROUTINE
 .loop 
     nop                             ;2
     lda     (ram_91),y              ;5
-    and     ram_96|$100             ;4      = $ff       flash
-    eor     ram_99|$100             ;4      = $00|$ff   invert
+    and     ram_96|$100             ;4          = $ff       flash
+    eor     ram_99|$100             ;4          = $00|$ff   invert
     tax                             ;2
     lda     (ram_93),y              ;5
-    and     ram_97|$100             ;4      = $ff
-    eor     ram_9A|$100             ;4      = $00|$ff
+    and     ram_97|$100             ;4          = $ff
+    eor     ram_9A|$100             ;4          = $00|$ff
     stx     GRP0                    ;3
-    jmp     .cont                   ;3   =  36          weird!?
+    jmp     .cont                   ;3   =  36  weird!?
 
 .cont
     sta     GRP0                    ;3
-    inc     ram_86                  ;5
+    inc     drawIdx                 ;5
 DrawDialDigits
-    ldy     ram_86                  ;3
+    ldy     drawIdx                 ;3
     lda     (ram_8F),y              ;5
-    and     ram_95|$100             ;4      = $ff
+    and     ram_95|$100             ;4          = $ff
     sta     WSYNC                   ;3   =  23
 ;---------------------------------------
-    eor     ram_98|$100             ;4      = $00|$ff
+    eor     ram_98|$100             ;4          = $00|$ff
     sta     GRP0                    ;3
-    cpy     ram_87                  ;3
+    cpy     drawEnd                 ;3
     bne     .loop                   ;2/3!
     lda     #$00                    ;2
     sta     GRP0                    ;3
     rts                             ;6   =  23
     
 DrawDialPad SUBROUTINE
-    lda     ram_86                  ;3
+    lda     drawIdx                 ;3
     sta     COLUPF                  ;3
-    lda     ram_87                  ;3
-    sta     ram_A0                  ;3   =  12
+    lda     drawEnd                 ;3
+    sta     drawEndCopy             ;3   =  12
     lda     #%11111110              ;2
     sta     PF2                     ;3
     jsr     XPosSprite0             ;6
@@ -2505,12 +2507,12 @@ DrawDialPad SUBROUTINE
     lda     #>DigitCol2             ;2
     sta     ram_94                  ;3
     ldy     #$00                    ;2
-    sty     ram_86                  ;3
+    sty     drawIdx                 ;3
     tya                             ;2   =  56
 .loopRow
     clc                             ;2
     adc     #DIGIT_H                ;2
-    sta     ram_87                  ;3
+    sta     drawEnd                 ;3
     sty     tmpVarDE                ;3
     jsr     L19a7                   ;6
     jsr     DrawDialDigits          ;6
@@ -2518,7 +2520,7 @@ DrawDialPad SUBROUTINE
     jsr     WaitLines               ;6
     ldy     tmpVarDE                ;3
     iny                             ;2
-    lda     ram_86                  ;3
+    lda     drawIdx                 ;3
     cmp     #DIGIT_H*3+1            ;2
     bmi     .loopRow                ;2/3
     ldx     #$06                    ;2
@@ -2528,9 +2530,9 @@ DrawDialPad SUBROUTINE
     ldx     #$03                    ;2
     jsr     WaitLines               ;6
     lda     #$00                    ;2
-    sta     ram_86                  ;3
+    sta     drawIdx                 ;3
     lda     #DIGIT_H                ;2
-    sta     ram_87                  ;3
+    sta     drawEnd                 ;3
     jsr     SetupBottomDigits       ;6          prepare digits at bottom squares
     jsr     FlashCurrentDigit       ;6
     jsr     DrawDialDigits          ;6
@@ -2592,7 +2594,7 @@ SetupBottomDigits SUBROUTINE
     sta     ram_92                  ;3
     sta     ram_94                  ;3
     ldx     #0                      ;2
-    lda     ram_A0                  ;3
+    lda     drawEndCopy             ;3
     beq     .drawBlocks             ;2/3!
 .loop
     cpx     numDigits               ;3
