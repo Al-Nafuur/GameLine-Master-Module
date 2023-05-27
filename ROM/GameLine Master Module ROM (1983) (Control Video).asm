@@ -1,23 +1,5 @@
-; Disassembly of ~\Documents\Atari\Games\Atarimania\V18\GameLine Master Module ROM (1983) (Control Video Corporation) ~.bin
-; Disassembled 05/11/23 15:14:58
-; Using Stella 7.0_pre
-;
-; ROM properties name : GameLine Master Module ROM (1983) (Control Video)
-; ROM properties MD5  : f539e32bf6ce39c8ca47cb0cdd2c5cb8
-; Bankswitch type     : 4K* (4K)
-;
-; Legend: *  = CODE not yet run (tentative code)
-;         D  = DATA directive (referenced in some way)
-;         G  = GFX directive, shown as '#' (stored in player, missile, ball)
-;         P  = PGFX directive, shown as '*' (stored in playfield)
-;         C  = COL directive, shown as color constants (stored in player color)
-;         CP = PCOL directive, shown as color constants (stored in playfield color)
-;         CB = BCOL directive, shown as color constants (stored in background color)
-;         A  = AUD directive (stored in audio registers)
-;         i  = indexed accessed only
-;         c  = used by code executed in RAM
-;         s  = used by stack
-;         !  = page crossed, 1 cycle penalty
+; Disassembly of GameLine Master Module
+; (C)2023 - Thomas Jentzsch
 
     processor 6502
 
@@ -35,11 +17,11 @@ ORIGINAL        = 1         ; 1 = compile 100% identical to dump
 
 ; * * * * *  GL-Mapping-Bits  * * * * *
 
-; SLICES (bits 8, 10 & 11):
-;   $400: slice 0
-;   $500: slice 1 
-;   $800: slice 2 
-;   $900: slice 3
+; SEGMENTS (bits 8, 10 & 11):
+;   $400: segment 0
+;   $500: segment 1 
+;   $800: segment 2 
+;   $900: segment 3
 
 ; BANKS & MODES (bits 0..5): 
 ; bit 0, 1: 0..3 = mapped bank
@@ -49,26 +31,26 @@ ORIGINAL        = 1         ; 1 = compile 100% identical to dump
 ; bit 5: 0 = read, 1 = write (RAM only) (-> if bit 5 == 1 then bit 2 == 1)
 
 ; GameLine registers:        
-SL0_BX          = $480      ; switch ROM bank X into slice 0; X = 1|..
-SL0_B3          = SL0_BX    ; switch ROM bank 3 into slice 0
-SL0_B0          = $481      ; switch ROM bank 0 into slice 0
-SL0_R1          = $485      ; switch RAM bank 1 into slice 0 for reading
-SL0_WD          = $4ad      ; switch RAM bank ? into slice 0 for writing (writes to $1000)
+SG0_BX          = $480      ; switch ROM bank X into segment 0; X = 1|..
+SG0_B0          = SG0_BX    ; switch ROM bank 0 into segment 0
+SG0_B1          = $481      ; switch ROM bank 1 into segment 0
+SG0_R1          = $485      ; switch RAM bank 1 into segment 0 for reading
+SG0_WD          = $4ad      ; switch RAM bank ? into segment 0 for writing (writes to $1000)
 
-SL1_BX          = $580      ; switch ROM bank X into slice 1; X = 1|2|4|..
-SL1_B1          = $582      ; switch ROM bank 1 into slice 1
-SL1_B2          = $583      ; switch ROM bank 2 into slice 1
+SG1_BX          = $580      ; switch ROM bank X into segment 1; X = 1|2|4|..
+SG1_B2          = $582      ; switch ROM bank 2 into segment 1
+SG1_B3          = $583      ; switch ROM bank 3 into segment 1
 
-SL2_BX          = $880      ; switch ROM bank X into slice 2; X = 4|..  
-SL2_B3          = SL2_BX    ; switch ROM bank 3 into slice 2
-SL2_R0          = $884      ; switch RAM bank 0 into slice 2 for reading
-SL2_R1          = $885      ; switch RAM bank 1 into slice 2 for reading
-SL2_WX          = $8a0      ; switch RAM bank X into slice 2 for writing (,X; writes to ???)
-SL2_W0          = $8a4      ; switch RAM bank 0 into slice 2 for writing (writes to $1802)
-SL2_W1          = $8a5      ; switch RAM bank 1 into slice 2 for writing (writes to $1802, $180c, $180d, $180e..$1815)
+SG2_BX          = $880      ; switch ROM bank X into segment 2; X = 4|..  
+SG2_B0          = SG2_BX    ; switch ROM bank 0 into segment 2
+SG2_R0          = $884      ; switch RAM bank 0 into segment 2 for reading
+SG2_R1          = $885      ; switch RAM bank 1 into segment 2 for reading
+SG2_WX          = $8a0      ; switch RAM bank X into segment 2 for writing (,X; writes to ???)
+SG2_W0          = $8a4      ; switch RAM bank 0 into segment 2 for writing (writes to $1802)
+SG2_W1          = $8a5      ; switch RAM bank 1 into segment 2 for writing (writes to $1802, $180c, $180d, $180e..$1815)
 
-SL3_BX          = $980      ; switch ROM bank X into slice 3; X = 0|13|...
-SL3_B3          = SL3_BX    ; switch ROM bank 3 into slice 3
+SG3_BX          = $980      ; switch ROM bank X into segment 3; X = 0|13|...
+SG3_B0          = SG3_BX    ; switch ROM bank 0 into segment 3
 
 GL_680          = $680
 
@@ -88,22 +70,22 @@ GL_INPUT        = $1ff8
 ;      Color constants
 ;-----------------------------------------------------------
 
-BLACK            = $00
+;BLACK            = $00
 YELLOW           = $10
 BROWN            = $20
-ORANGE           = $30
+;ORANGE           = $30
 RED              = $40
-MAUVE            = $50
-VIOLET           = $60
-PURPLE           = $70
-BLUE             = $80
-BLUE_CYAN        = $90
-CYAN             = $a0
-CYAN_GREEN       = $b0
-GREEN            = $c0
-GREEN_YELLOW     = $d0
+;MAUVE            = $50
+;VIOLET           = $60
+;PURPLE           = $70
+;BLUE             = $80
+;BLUE_CYAN        = $90
+;CYAN             = $a0
+;CYAN_GREEN       = $b0
+;GREEN            = $c0
+;GREEN_YELLOW     = $d0
 GREEN_BEIGE      = $e0
-BEIGE            = $f0
+;BEIGE            = $f0
 
 
 ;-----------------------------------------------------------
@@ -158,9 +140,9 @@ T1024T          = $0297
 ;-----------------------------------------------------------
 
 ram_80          = $80           ; always 1, never read
-slice1Bank      = $81           ; X for SL1_BX,x (X = 2)
-slice2Bank      = $82           ; X for SL2_BX,x (X = 4, ?)
-slice3Bank      = $83           ; X for SL3_BX,x (X = 13|0)
+seg1Bank        = $81           ; X for SG1_BX,x (X = 2)
+seg2Bank        = $82           ; X for SG2_BX,x (X = 4, ?)
+seg3Bank        = $83           ; X for SG3_BX,x (X = 13|0)
 ;---------------------------------------
 drawPtrIdx      = $84
 drawLst         = $85           ; ..$8a
@@ -218,7 +200,7 @@ ram_B1          = $b1
 ram_B2          = $b2
 ram_B3          = $b3
 unusedPtr       = $b4           ;..$b5
-slice3BankB     = $b6
+seg3BankB       = $b6
 unusedFlag      = $b7
 
 pulseCount      = $ba
@@ -249,13 +231,16 @@ ram_D3          = $d3
 animState       = $d4   
 animDelay       = $d5
 xCurtain        = $d6
-ram_D7          = $d7
-ram_D8          = $d8
-ram_D9          = $d9
-ram_DA          = $da           ; loaded only via ($d7),y; -> storeCnt
-ram_DB          = $db           ; ????2222 ?, bank into slice 2
-ram_DC          = $dc           ; 00001111 -> banks into slices 0/1
-ram_DD          = $dd           ; 22223333 -> banks into slices 2/3
+;---------------------------------------
+paramLst        = $d7           ; ..$dd (loaded before ROM load?)
+ram_D7          = paramLst
+ram_D8          = paramLst+1
+ram_D9          = paramLst+2    ; never stored, only read or shifted
+ram_DA          = paramLst+3    ; -> storeCnt
+ram_DB          = paramLst+4    ; ????2222 ?, RAM bank into segment 2
+ram_DC          = paramLst+5    ; 00001111 -> ROM banks into segments 0/1 (also used as jump & data pointer)
+ram_DD          = paramLst+6    ; 22223333 -> ROM banks into segments 2/3 (also used as jump & data pointer)
+;---------------------------------------
 tmpVarDE        = $de
 ram_DF          = $df
 speedIdx        = $e0
@@ -288,14 +273,752 @@ L1812   = $1812     ; -> numberPtr, indexed
 L1813   = $1813     ; -> numberPtr+1, indexed
 
 
+
+    SEG     CODE
+    ORG     $1000
+
 ;***********************************************************
 ;      Bank 0
 ;***********************************************************
 ; 1K ROM bank #0
+    
+    RORG    $1c00                           ;               code for segment 3/3
 
-    SEG     CODE
+L1c00
+    .byte   $c1                             ; $1c00 (D) ram_AF
+    .byte   $1e                             ; $1c01 (D) ram_D2+ram_B1
+    .byte   $00,$00,$00,$00                 ; $1c02 (D) ram_C6, jmpIdx, timeCnt, timeCnt+1
+    .word   MessagePtrs                     ; $1c06
+    .byte   $64                             ; $1c08 -> TIM64T
+    .byte   $89                             ; $1c09 -> TIM64T
+    .byte   $7f                             ; $1c0a -> ram_B0
+    .byte   $0a                             ; $1c0b -> WaitLines
+    .word   L1c75                               
+    .byte   $00,$00,$00                     ; $1c0e (D)     ? ? dataPtr2
+    .byte   $00                             ; $1c11 (D)     dataPtr2+1
+    .word   L1c69
+    .byte   $c0,$00,$05,$03,$00,$00,$c0     ; $1c14 (D)
+    .byte   $05,$05,$00,$00,$00,$ff         ; $1c1b (D)
 
-    ORG     $1000
+MessagePtrs
+    .word   ReadManual0, ReadManual1, ReadManual2
+    .word   ReadManual3, ReadManual4, ReadManual5-$1000
+ReadManual0
+    .byte   %00001110 ; |    ### |            $1c2d (G)     READ MANUAL
+    .byte   %00001010 ; |    # # |            $1c2e (G)
+    .byte   %11001110 ; |##  ### |            $1c2f (G)
+    .byte   %00001100 ; |    ##  |            $1c30 (G)
+    .byte   %00001010 ; |    # # |            $1c31 (G)
+
+    .byte   %00001110 ; |    ### |            $1c32 (G)     PRESS RESET
+    .byte   %00001010 ; |    # # |            $1c33 (G)
+    .byte   %11001110 ; |##  ### |            $1c34 (G)
+    .byte   %00001000 ; |    #   |            $1c35 (G)
+    .byte   %00001000 ; |    #   |            $1c36 (G)
+ReadManual1
+    .byte   %11101110 ; |### ### |            $1c37 (G)
+    .byte   %10001010 ; |#   # # |            $1c38 (G)
+    .byte   %11001110 ; |##  ### |            $1c39 (G)
+    .byte   %10001010 ; |#   # # |            $1c3a (G)
+    .byte   %11101010 ; |### # # |            $1c3b (G)
+
+    .byte   %11101110 ; |### ### |            $1c3c (G)
+    .byte   %10101000 ; |# # #   |            $1c3d (G)
+    .byte   %11101100 ; |### ##  |            $1c3e (G)
+    .byte   %11001000 ; |##  #   |            $1c3f (G)
+    .byte   %10101110 ; |# # ### |            $1c40 (G)
+ReadManual2
+    .byte   %11000010 ; |##    # |            $1c41 (G)
+    .byte   %10100011 ; |# #   ##|            $1c42 (G)
+    .byte   %10100010 ; |# #   # |            $1c43 (G)
+    .byte   %10100010 ; |# #   # |            $1c44 (G)
+    .byte   %11000010 ; |##    # |            $1c45 (G)
+
+    .byte   %11101110 ; |### ### |            $1c46 (G)
+    .byte   %10001000 ; |#   #   |            $1c47 (G)
+    .byte   %11101110 ; |### ### |            $1c48 (G)
+    .byte   %00100010 ; |  #   # |            $1c49 (G)
+    .byte   %11101110 ; |### ### |            $1c4a (G)
+ReadManual3
+    .byte   %00101110 ; |  # ### |            $1c4b (G)
+    .byte   %01101010 ; | ## # # |            $1c4c (G)
+    .byte   %10101110 ; |# # ### |            $1c4d (G)
+    .byte   %00101010 ; |  # # # |            $1c4e (G)
+    .byte   %00101010 ; |  # # # |            $1c4f (G)
+
+    .byte   %00111011 ; |  ### ##|            $1c50 (G)
+    .byte   %00101010 ; |  # # # |            $1c51 (G)
+    .byte   %00111011 ; |  ### ##|            $1c52 (G)
+    .byte   %00110010 ; |  ##  # |            $1c53 (G)
+    .byte   %00101011 ; |  # # ##|            $1c54 (G)
+ReadManual4
+    .byte   %10010101 ; |#  # # #|            $1c55 (G)
+    .byte   %11010101 ; |## # # #|            $1c56 (G)
+    .byte   %11110101 ; |#### # #|            $1c57 (G)
+    .byte   %10110101 ; |# ## # #|            $1c58 (G)
+    .byte   %10010111 ; |#  # ###|            $1c59 (G)
+
+    .byte   %10111011 ; |# ### ##|            $1c5a (G)
+    .byte   %00100010 ; |  #   # |            $1c5b (G)
+    .byte   %00111011 ; |  ### ##|            $1c5c (G)
+    .byte   %00001010 ; |    # # |            $1c5d (G)
+    .byte   %10111011 ; |# ### ##|            $1c5e (G)
+ReadManual5
+    .byte   %01110100 ; | ### #  |            $1c5f (G)
+    .byte   %01010100 ; | # # #  |            $1c60 (G)
+    .byte   %01110100 ; | ### #  |            $1c61 (G)
+    .byte   %01010100 ; | # # #  |            $1c62 (G)
+    .byte   %01010111 ; | # # ###|            $1c63 (G)
+
+    .byte   %10111000 ; |# ###   |            $1c64 (G)
+    .byte   %00010000 ; |   #    |            $1c65 (G)
+    .byte   %10010000 ; |#  #    |            $1c66 (G)
+    .byte   %00010000 ; |   #    |            $1c67 (G)
+    .byte   %10010000 ; |#  #    |            $1c68 (G)
+
+L1c69
+    inc     frameCnt                ;5
+    bne     L1c74                   ;2/3
+    lda     color                   ;3
+    clc                             ;2
+    adc     #$50                    ;2
+    sta     color                   ;3   =  17
+L1c74
+    rts                             ;6   =   6
+
+L1c75 SUBROUTINE
+    cpx     #$02                    ;2              RESET?
+    beq     L1c7a                   ;2/3             yes
+    rts                             ;6   =  10       no, ignore
+
+L1c7a
+    ldy     SG2_W1                  ;4              switch RAM bank 1 into segment 2 for writing (L1800..)
+    ldx     #$00                    ;2   =   6
+.loopCopy
+    lda     L1c9a,x                 ;4              copy code into RAM for execution
+    sta     L180e,x                 ;5              
+    inx                             ;2
+    cpx     #$08                    ;2              8 bytes
+    bne     .loopCopy               ;2/3
+    lda     #$10                    ;2
+    sta     ram_D2                  ;3
+    lda     #$00                    ;2
+    sta     ram_D3                  ;3
+    sta     dialCount               ;3
+    jsr     Dial                    ;6
+    jmp     L13a3                   ;3   =  37
+
+L1c9a
+    .byte   99                      ;       L180e   -> timeCnt+1
+    jmp     (L1403)                 ;       L180f   -> LoadByte (called via jmp $100f)
+    .word   PhoneNum                ;       L1812   -> numberPtr
+    .word   $ffff                   ;       L1814   -> 2nd numberPtr
+
+Check1800 SUBROUTINE
+    ldx     #$03                    ;2
+    lda     #$e9                    ;2   =   4
+.loopRAM
+    cmp     L1802,x                 ;4              undefined! ($1802..$1805 == $48,$a4,$d2,$e9)
+;  IF ORIGINAL
+    bne     .failed                 ;2/3
+;  ELSE
+;    ds      2, $ea
+;  ENDIF
+    asl                             ;2
+    dex                             ;2
+    bne     .loopRAM                ;2/3
+    lda     #>L1800                 ;2
+    sta     dataPtr2+1              ;3
+    ldy     #<L1800                 ;2
+    sty     dataPtr2                ;3
+    tya                             ;2   =  24  = 0
+.loop
+    clc                             ;2
+    adc     (dataPtr2),y            ;5          undefined! 
+    inc     dataPtr2                ;5
+    bne     .skipHi                 ;2/3
+    inc     dataPtr2+1              ;5   =   9
+.skipHi
+    ldx     L1800                   ;4          undefined! 
+    cpx     dataPtr2                ;3
+    bne     .loop                   ;2/3
+    ldx     L1801                   ;4          undefined! 
+    cpx     dataPtr2+1              ;3
+    bne     .loop                   ;2/3
+  IF ORIGINAL
+    cmp     (dataPtr2),y            ;5   =  23
+  ELSE
+    lda     #0
+  ENDIF
+.failed
+    rts                             ;6   =   6
+
+    .byte   $04,$11,$6c,$33,$fd,$20,$31,$10 ; $1cd2 (D)
+    .byte   $c9,$ba,$f0,$de,$c9,$e0         ; $1cda (D)
+
+;===============================================================================
+
+    RORG . - $400                   ;           code for segment 2/3
+    
+XPosSprite0 SUBROUTINE
+    sta     WSYNC                   ;3   =  23
+;---------------------------------------
+    ldx     #$07                    ;2   =   2
+L18e4
+    dex                             ;2
+    bne     L18e4                   ;2/3
+    nop                             ;2
+    sta     RESP0                   ;3
+    sta     WSYNC                   ;3   =  12
+;---------------------------------------
+    lda     #$03                    ;2
+    sta     NUSIZ0                  ;3
+    lda     #$00                    ;2
+    sta     NUSIZ1                  ;3
+    sta     VDELP0                  ;3
+    sta     VDELP1                  ;3
+    rts                             ;6   =  22
+
+DDD SUBROUTINE
+.loop 
+    nop                             ;2
+    lda     (ram_91),y              ;5
+    and     ram_96|$100             ;4          = $ff       flash
+    eor     ram_99|$100             ;4          = $00|$ff   invert
+    tax                             ;2
+    lda     (ram_93),y              ;5
+    and     ram_97|$100             ;4          = $ff
+    eor     ram_9A|$100             ;4          = $00|$ff
+    stx     GRP0                    ;3
+    jmp     .cont                   ;3   =  36  weird!?
+
+.cont
+    sta     GRP0                    ;3
+    inc     drawIdx                 ;5
+DrawDialDigits
+    ldy     drawIdx                 ;3
+    lda     (ram_8F),y              ;5
+    and     ram_95|$100             ;4          = $ff
+    sta     WSYNC                   ;3   =  23
+;---------------------------------------
+    eor     ram_98|$100             ;4          = $00|$ff
+    sta     GRP0                    ;3
+    cpy     drawEnd                 ;3
+    bne     .loop                   ;2/3!
+    lda     #$00                    ;2
+    sta     GRP0                    ;3
+    rts                             ;6   =  23
+    
+DrawDialPad SUBROUTINE
+    lda     drawIdx                 ;3
+    sta     COLUPF                  ;3
+    lda     drawEnd                 ;3
+    sta     drawEndCopy             ;3   =  12
+    lda     #%11111110              ;2
+    sta     PF2                     ;3
+    jsr     XPosSprite0             ;6
+    ldx     #$06                    ;2
+    jsr     WaitLines               ;6
+    lda     #<DigitCol0             ;2          1 4 7 *
+    sta     ram_8F                  ;3
+    lda     #<DigitCol1             ;2          2 5 8 0
+    sta     ram_91                  ;3
+    lda     #<DigitCol2             ;2          3 6 9 #
+    sta     ram_93                  ;3
+    lda     #>DigitCol0             ;2
+    sta     ram_90                  ;3
+    lda     #>DigitCol1             ;2
+    sta     ram_92                  ;3
+    lda     #>DigitCol2             ;2
+    sta     ram_94                  ;3
+    ldy     #$00                    ;2
+    sty     drawIdx                 ;3
+    tya                             ;2   =  56
+.loopRow
+    clc                             ;2
+    adc     #DIGIT_H                ;2
+    sta     drawEnd                 ;3
+    sty     tmpVarDE                ;3
+    jsr     L19a7                   ;6
+    jsr     DrawDialDigits          ;6
+    ldx     #$03                    ;2
+    jsr     WaitLines               ;6
+    ldy     tmpVarDE                ;3
+    iny                             ;2
+    lda     drawIdx                 ;3
+    cmp     #DIGIT_H*3+1            ;2
+    bmi     .loopRow                ;2/3
+    ldx     #$06                    ;2
+    jsr     WaitLines               ;6
+    lda     #$00                    ;2
+    sta     PF2                     ;3
+    ldx     #$03                    ;2
+    jsr     WaitLines               ;6
+    lda     #$00                    ;2
+    sta     drawIdx                 ;3
+    lda     #DIGIT_H                ;2
+    sta     drawEnd                 ;3
+    jsr     SetupBottomDigits       ;6          prepare digits at bottom squares
+    jsr     FlashCurrentDigit       ;6
+    jsr     DrawDialDigits          ;6
+    lda     #YELLOW|$f              ;2
+    sta     COLUPF                  ;3
+    lda     #%10011000              ;2
+    sta     WSYNC                   ;3   = 101
+;---------------------------------------
+    sta     PF2                     ;3          underline
+    lda     #$00                    ;2
+    sta     WSYNC                   ;3   =   8
+;---------------------------------------
+    sta     PF2                     ;3
+    rts                             ;6   =   9
+    
+L19a7 SUBROUTINE
+    jsr     ClearFlash              ;6
+    cpy     yDial                   ;3
+    bne     .exit                   ;2/3
+    ldx     xDial                   ;3
+    dec     ram_98,x                ;6   =  20      invert
+.exit
+    rts                             ;6   =   6
+
+FlashCurrentDigit ;SUBROUTINE
+    jsr     ClearFlash              ;6
+    ldx     numDigits               ;3
+    cpx     #$03                    ;2
+    beq     .exit                   ;2/3
+    lda     flashState              ;3
+    sta     ram_95,x                ;4              flash
+    dec     flashTimer              ;5
+    bne     .exit                   ;2/3
+    lda     flashState              ;3
+    eor     #$ff                    ;2
+    sta     flashState              ;3
+    lda     #$14                    ;2
+    sta     flashTimer              ;3
+    rts                             ;6   =  46
+
+ClearFlash SUBROUTINE
+    ldx     #$ff                    ;2
+    stx     ram_95                  ;3
+    stx     ram_96                  ;3
+    stx     ram_97                  ;3
+    inx                             ;2
+    stx     ram_98                  ;3
+    stx     ram_99                  ;3
+    stx     ram_9A                  ;3
+    rts                             ;6   =  28
+        
+SetupBottomDigits SUBROUTINE
+    lda     #<BlockGfx              ;2
+    sta     ram_8F                  ;3
+    sta     ram_91                  ;3
+    sta     ram_93                  ;3
+    lda     #>BlockGfx              ;2
+    sta     ram_90                  ;3
+    sta     ram_92                  ;3
+    sta     ram_94                  ;3
+    ldx     #0                      ;2
+    lda     drawEndCopy             ;3
+    beq     .drawBlocks             ;2/3!
+.loop
+    cpx     numDigits               ;3
+    bpl     .drawBlocks             ;2/3!
+    ldy     digitLst,x              ;4
+    lda     DigitPtr,y              ;4
+    clc                             ;2
+    adc     #<DigitGfx              ;2
+    pha                             ;3
+    lda     #$00                    ;2
+    adc     #>DigitGfx              ;2
+    pha                             ;3
+    txa                             ;2
+    asl                             ;2
+    tay                             ;2
+    pla                             ;4
+    sta.wy  ptrLst+1,y              ;5
+    pla                             ;4
+    sta.wy  ptrLst,y                ;5
+    inx                             ;2
+    jmp     .loop                   ;3   =  61
+
+.drawBlocks
+    lda     WaitTbl,x               ;4
+    beq     .exitWait               ;2/3
+    tax                             ;2
+    jsr     WaitLines               ;6   =  14
+.exitWait
+    rts                             ;6   =   6
+
+WaitTbl 
+    .byte   $02,$02,$01,$00                 ; $1a20 (D)
+
+DigitGfx
+DigitCol0
+OneGfx
+    .byte   %00000000 ; |        |            $1a24 (G)
+    .byte   %00001000 ; |    #   |            $1a25 (G)
+    .byte   %00011000 ; |   ##   |            $1a26 (G)
+    .byte   %00001000 ; |    #   |            $1a27 (G)
+    .byte   %00001000 ; |    #   |            $1a28 (G)
+    .byte   %00001000 ; |    #   |            $1a29 (G)
+    .byte   %00001000 ; |    #   |            $1a2a (G)
+    .byte   %00001000 ; |    #   |            $1a2b (G)
+    .byte   %00001000 ; |    #   |            $1a2c (G)
+    .byte   %00011100 ; |   ###  |            $1a2d (G)
+    .byte   %00000000 ; |        |            $1a2e (G)
+DIGIT_H = . - OneGfx
+FourGfx
+    .byte   %00000000 ; |        |            $1a2f (G)
+    .byte   %00101000 ; |  # #   |            $1a30 (G)
+    .byte   %00101000 ; |  # #   |            $1a31 (G)
+    .byte   %00101000 ; |  # #   |            $1a32 (G)
+    .byte   %00101000 ; |  # #   |            $1a33 (G)
+    .byte   %00101000 ; |  # #   |            $1a34 (G)
+    .byte   %00111100 ; |  ####  |            $1a35 (G)
+    .byte   %00001000 ; |    #   |            $1a36 (G)
+    .byte   %00001000 ; |    #   |            $1a37 (G)
+    .byte   %00001000 ; |    #   |            $1a38 (G)
+    .byte   %00000000 ; |        |            $1a39 (G)
+SevenGfx
+    .byte   %00000000 ; |        |            $1a3a (G)
+    .byte   %00111100 ; |  ####  |            $1a3b (G)
+    .byte   %00000100 ; |     #  |            $1a3c (G)
+    .byte   %00000100 ; |     #  |            $1a3d (G)
+    .byte   %00000100 ; |     #  |            $1a3e (G)
+    .byte   %00001000 ; |    #   |            $1a3f (G)
+    .byte   %00001000 ; |    #   |            $1a40 (G)
+    .byte   %00010000 ; |   #    |            $1a41 (G)
+    .byte   %00010000 ; |   #    |            $1a42 (G)
+    .byte   %00010000 ; |   #    |            $1a43 (G)
+    .byte   %00000000 ; |        |            $1a44 (G)
+;StarGfx
+    .byte   %00000000 ; |        |            $1a45 (G)
+    .byte   %00000000 ; |        |            $1a46 (G)
+    .byte   %01000010 ; | #    # |            $1a47 (G)
+    .byte   %00100100 ; |  #  #  |            $1a48 (G)
+    .byte   %00011000 ; |   ##   |            $1a49 (G)
+    .byte   %01111110 ; | ###### |            $1a4a (G)
+    .byte   %00011000 ; |   ##   |            $1a4b (G)
+    .byte   %00100100 ; |  #  #  |            $1a4c (G)
+    .byte   %01000010 ; | #    # |            $1a4d (G)
+    .byte   %00000000 ; |        |            $1a4e (G)
+    .byte   %00000000 ; |        |            $1a4f (G)
+DigitCol1
+TwoGfx
+    .byte   %00000000 ; |        |            $1a50 (G)
+    .byte   %00011000 ; |   ##   |            $1a51 (G)
+    .byte   %00100100 ; |  #  #  |            $1a52 (G)
+    .byte   %00000100 ; |     #  |            $1a53 (G)
+    .byte   %00000100 ; |     #  |            $1a54 (G)
+    .byte   %00001000 ; |    #   |            $1a55 (G)
+    .byte   %00010000 ; |   #    |            $1a56 (G)
+    .byte   %00100000 ; |  #     |            $1a57 (G)
+    .byte   %00100000 ; |  #     |            $1a58 (G)
+    .byte   %00111100 ; |  ####  |            $1a59 (G)
+    .byte   %00000000 ; |        |            $1a5a (G)
+FiveGfx
+    .byte   %00000000 ; |        |            $1a5b (G)
+    .byte   %00111100 ; |  ####  |            $1a5c (G)
+    .byte   %00100000 ; |  #     |            $1a5d (G)
+    .byte   %00100000 ; |  #     |            $1a5e (G)
+    .byte   %00111000 ; |  ###   |            $1a5f (G)
+    .byte   %00100100 ; |  #  #  |            $1a60 (G)
+    .byte   %00000100 ; |     #  |            $1a61 (G)
+    .byte   %00000100 ; |     #  |            $1a62 (G)
+    .byte   %00100100 ; |  #  #  |            $1a63 (G)
+    .byte   %00011000 ; |   ##   |            $1a64 (G)
+    .byte   %00000000 ; |        |            $1a65 (G)
+EightGfx
+    .byte   %00000000 ; |        |            $1a66 (G)
+    .byte   %00011000 ; |   ##   |            $1a67 (G)
+    .byte   %00100100 ; |  #  #  |            $1a68 (G)
+    .byte   %00100100 ; |  #  #  |            $1a69 (G)
+    .byte   %00100100 ; |  #  #  |            $1a6a (G)
+    .byte   %00011000 ; |   ##   |            $1a6b (G)
+    .byte   %00100100 ; |  #  #  |            $1a6c (G)
+    .byte   %00100100 ; |  #  #  |            $1a6d (G)
+    .byte   %00100100 ; |  #  #  |            $1a6e (G)
+    .byte   %00011000 ; |   ##   |            $1a6f (G)
+    .byte   %00000000 ; |        |            $1a70 (G)
+ZeroGfx
+    .byte   %00000000 ; |        |            $1a71 (G)
+    .byte   %00011000 ; |   ##   |            $1a72 (G)
+    .byte   %00100100 ; |  #  #  |            $1a73 (G)
+    .byte   %00100100 ; |  #  #  |            $1a74 (G)
+    .byte   %00100100 ; |  #  #  |            $1a75 (G)
+    .byte   %00100100 ; |  #  #  |            $1a76 (G)
+    .byte   %00100100 ; |  #  #  |            $1a77 (G)
+    .byte   %00100100 ; |  #  #  |            $1a78 (G)
+    .byte   %00100100 ; |  #  #  |            $1a79 (G)
+    .byte   %00011000 ; |   ##   |            $1a7a (G)
+    .byte   %00000000 ; |        |            $1a7b (G)
+DigitCol2
+ThreeGfx
+    .byte   %00000000 ; |        |            $1a7c (G)
+    .byte   %00011000 ; |   ##   |            $1a7d (G)
+    .byte   %00100100 ; |  #  #  |            $1a7e (G)
+    .byte   %00000100 ; |     #  |            $1a7f (G)
+    .byte   %00000100 ; |     #  |            $1a80 (G)
+    .byte   %00011000 ; |   ##   |            $1a81 (G)
+    .byte   %00000100 ; |     #  |            $1a82 (G)
+    .byte   %00000100 ; |     #  |            $1a83 (G)
+    .byte   %00100100 ; |  #  #  |            $1a84 (G)
+    .byte   %00011000 ; |   ##   |            $1a85 (G)
+    .byte   %00000000 ; |        |            $1a86 (G)
+SixGfx
+    .byte   %00000000 ; |        |            $1a87 (G)
+    .byte   %00011000 ; |   ##   |            $1a88 (G)
+    .byte   %00100100 ; |  #  #  |            $1a89 (G)
+    .byte   %00100000 ; |  #     |            $1a8a (G)
+    .byte   %00100000 ; |  #     |            $1a8b (G)
+    .byte   %00111000 ; |  ###   |            $1a8c (G)
+    .byte   %00100100 ; |  #  #  |            $1a8d (G)
+    .byte   %00100100 ; |  #  #  |            $1a8e (G)
+    .byte   %00100100 ; |  #  #  |            $1a8f (G)
+    .byte   %00011000 ; |   ##   |            $1a90 (G)
+    .byte   %00000000 ; |        |            $1a91 (G)
+NineGfx
+    .byte   %00000000 ; |        |            $1a92 (G)
+    .byte   %00011000 ; |   ##   |            $1a93 (G)
+    .byte   %00100100 ; |  #  #  |            $1a94 (G)
+    .byte   %00100100 ; |  #  #  |            $1a95 (G)
+    .byte   %00100100 ; |  #  #  |            $1a96 (G)
+    .byte   %00011100 ; |   ###  |            $1a97 (G)
+    .byte   %00000100 ; |     #  |            $1a98 (G)
+    .byte   %00000100 ; |     #  |            $1a99 (G)
+    .byte   %00100100 ; |  #  #  |            $1a9a (G)
+    .byte   %00011000 ; |   ##   |            $1a9b (G)
+    .byte   %00000000 ; |        |            $1a9c (G)
+;HashGfx
+    .byte   %00000000 ; |        |            $1a9d (G)
+    .byte   %00000000 ; |        |            $1a9e (G)
+    .byte   %00100100 ; |  #  #  |            $1a9f (G)
+    .byte   %01111110 ; | ###### |            $1aa0 (G)
+    .byte   %00100100 ; |  #  #  |            $1aa1 (G)
+    .byte   %00100100 ; |  #  #  |            $1aa2 (G)
+    .byte   %01111110 ; | ###### |            $1aa3 (G)
+    .byte   %00100100 ; |  #  #  |            $1aa4 (G)
+    .byte   %00100100 ; |  #  #  |            $1aa5 (G)
+    .byte   %00000000 ; |        |            $1aa6 (G)
+    .byte   %00000000 ; |        |            $1aa7 (G)
+BlockGfx
+    .byte   %00000000 ; |        |            $1aa8 (G)
+    .byte   %11111111 ; |########|            $1aa9 (G)
+    .byte   %11111111 ; |########|            $1aaa (G)
+    .byte   %11111111 ; |########|            $1aab (G)
+    .byte   %11111111 ; |########|            $1aac (G)
+    .byte   %11111111 ; |########|            $1aad (G)
+    .byte   %11111111 ; |########|            $1aae (G)
+    .byte   %11111111 ; |########|            $1aaf (G)
+    .byte   %11111111 ; |########|            $1ab0 (G)
+    .byte   %11111111 ; |########|            $1ab1 (G)
+    .byte   %00000000 ; |        |            $1ab2 (G)
+DigitPtr
+    .byte   ZeroGfx  - DigitGfx             ; $1ab3 (D)  
+    .byte   OneGfx   - DigitGfx   
+    .byte   TwoGfx   - DigitGfx   
+    .byte   ThreeGfx - DigitGfx
+    .byte   FourGfx  - DigitGfx  
+    .byte   FiveGfx  - DigitGfx  
+    .byte   SixGfx   - DigitGfx
+    .byte   SevenGfx - DigitGfx 
+    .byte   EightGfx - DigitGfx 
+    .byte   NineGfx  - DigitGfx
+; ??? TODO
+    .byte   $d3,$cc,$ef,$f4,$16,$00         ; $1abd (D)
+    .byte   $06,$d3,$e1,$d6,$c5,$04,$12,$00 ; $1ac3 (D)
+    .byte   $12,$d4,$d2,$f5,$ee             ; $1acb (D)
+
+;===============================================================================
+
+    RORG    . - $800                ;           code for segment 0/3
+
+AnimDoubleCurtain SUBROUTINE
+    lda     #%01111111              ;2          
+    ldx     #$08                    ;2          
+    ldy     #$ff                    ;2
+    sty     AUDV0                   ;3
+    ldy     #$01                    ;2
+    sty     AUDC0                   ;3
+.loop
+    sta     PF1                     ;3
+    sta     PF2                     ;3
+    stx     AUDF0                   ;3
+    jsr     Wait100ms               ;6
+    cmp     #$00                    ;2
+    beq     .exit                   ;2/3
+    dex                             ;2
+    lsr                             ;2          open curtain
+    jmp     .loop                   ;3   =  40
+
+.exit
+    sta     AUDV0                   ;3
+    rts                             ;6   =   9
+
+SendLoadHeader20 SUBROUTINE
+    jsr     SendHeader              ;6
+    lda     #$20                    ;2
+    jsr     SendByte                ;6
+    lda     SG2_R1                  ;4          switch RAM bank 1 into segment 2 for reading (L1800..)
+    lda     L1802                   ;4
+    bne     .isInitialized          ;2/3
+    lda     #<L1308                 ;2
+    ldx     #>L1308                 ;2
+    jmp     .uninitialized          ;3   =  31
+
+L1308
+    brk                             ;7   =   7  number of extra bytes to send
+
+.isInitialized
+    lda     L180a                   ;4
+    ldx     L180b                   ;4
+.uninitialized
+    sta     dataPtr2                ;3
+    stx     dataPtr2+1              ;3
+    ldy     #$00                    ;2
+    lda     (dataPtr2),y            ;5
+    clc                             ;2
+    adc     #$05                    ;2
+    jsr     SendByte                ;6
+    lda     ram_D2                  ;3          = $00|$10
+    jsr     SendByte                ;6
+    lda     ram_D3                  ;3          = $00
+    jsr     SendByte                ;6
+    lda     dialSpeed               ;3
+    asl                             ;2
+    asl                             ;2
+    asl                             ;2
+    asl                             ;2
+    sta     tmpVarDE                ;3
+    lda     dialType                ;3
+    and     #$0f                    ;2
+    ora     tmpVarDE                ;3
+    jsr     SendByte                ;6          
+    jsr     SendCRC                 ;6
+    jsr     SetDelay                ;6
+    ldy     #$00                    ;2   =  91
+.loopSendA
+    lda     $1fda,y                 ;4          serial number from PROM? (..$1fdf)
+    jsr     SendByte                ;6
+    iny                             ;2
+    cpy     #$05                    ;2
+    bne     .loopSendA              ;2/3
+    ldy     #$00                    ;2
+    lda     (dataPtr2),y            ;5          number of bytes to send
+    beq     .skipInitialized        ;2/3
+    tax                             ;2   =  27
+.loopSend
+    iny                             ;2
+    lda     (dataPtr2),y            ;5
+    jsr     SendByte                ;6
+    dex                             ;2
+    bne     .loopSend               ;2/3 =  17
+.skipInitialized
+    jsr     SendCRC                 ;6
+    jsr     EndSend                 ;6
+    rts                             ;6   =  18
+
+    .byte   $14,$2e,$1b,$76,$16,$16,$17,$c4 ; $1f62 (D)
+    .byte   $16,$ff,$16,$c3,$15,$b5,$cd,$d3 ; $1f6a (D)
+    .byte   $d3,$a0,$d3,$d4,$a0,$d2,$c8,$66 ; $1f72 (D)
+    .byte   $16,$ef,$16,$79,$15,$32,$1d,$24 ; $1f7a (D)
+    .byte   $5a,$30,$03,$20,$81,$14         ; $1f82 (D)
+
+;===============================================================================
+
+    RORG    . + $c00                ;           code for segment 3/3
+
+CheckSumPROM SUBROUTINE
+    ldx     #$00                    ;2
+    stx     crcHi                   ;3
+    lda     GL_STOP_PULSE           ;4   =   9  
+L1f8f
+    lda     $1fc0,x                 ;4          ..$1fde, most likely NOT from ROM or RAM
+    eor     crcHi                   ;3          
+    sta     crcHi                   ;3
+    asl                             ;2
+    rol     crcHi                   ;5
+    inx                             ;2
+    cpx     #$1f                    ;2
+    bne     L1f8f                   ;2/3
+    lda     $1fc0,x                 ;4          $1fdf
+    cmp     crcHi                   ;3
+  IF ORIGINAL
+    bne     .error                  ;2/3
+  ELSE
+    ds      2, $ea
+  ENDIF
+    lda     GL_STOP_C80             ;4          
+    rts                             ;6   =  42
+
+.error
+    lda     #GREEN_BEIGE|$6         ;2
+    sta     COLUBK                  ;3
+    jmp     .error                  ;3   =   8
+
+CheckASIC SUBROUTINE
+; write and read the ASIC flipflop:
+    lda     GL_START_CA0            ;4          switch something on (allow writing?)
+    sty     $1000                   ;4          target address doesn't matter
+    lda     GL_INPUT                ;4
+    and     #$03                    ;2
+    ldy     GL_STOP_C80             ;4          ...and off again? (stop writing?)
+    rts                             ;6   =  24
+
+Start SUBROUTINE
+    sei                             ;2   =   2
+    cld                             ;2
+    lda     #$00                    ;2
+    tax                             ;2
+    ldy     #$a8                    ;2   =   8
+.loopWait
+    txs                             ;2          this code does only init SP to something >= $80...
+    inx                             ;2          ...and waits for ~250ms
+    bne     .loopWait               ;2/3
+    dey                             ;2
+    bne     .loopWait               ;2/3
+; check if ASIC has come out of reset:
+    ldx     #$05                    ;2          retry 5 times
+    lda     SG0_WD                  ;4   =  16  switch PROM(?) bank into segment 0 for writing
+.retryCheckASIC
+    ldy     #$02                    ;2
+    jsr     CheckASIC               ;6
+    cmp     #$02                    ;2
+  IF ORIGINAL
+    bne     L1fe4                   ;2/3 =  12
+  ELSE
+    ds      2, $ea
+  ENDIF
+    ldy     #$01                    ;2
+    jsr     CheckASIC               ;6
+    cmp     #$01                    ;2
+  IF ORIGINAL
+    beq     .ok                     ;2/3 =  14
+  ELSE
+    bne     .ok                     ;2/3 =  14
+  ENDIF
+L1fe4
+    lda     GL_680                  ;4          
+    dex                             ;2
+    bne     .retryCheckASIC         ;2/3 =   8
+.ok  
+    lda     GL_680                  ;4          
+    jsr     CheckSumPROM            ;6          -> GL_STOP_C80
+    lda     SG0_B1                  ;4          switch ROM bank 1 into segment 0
+    lda     SG1_B2                  ;4          switch ROM bank 2 into segment 1
+    lda     SG2_R0                  ;4          switch RAM bank 0 into segment 2 for reading
+    jmp     L1000                   ;3   =   6
+
+L1ffc
+    .word   Start,Start                     ; $1ffc (D)
+
+
+;***********************************************************
+;      Bank 1
+;***********************************************************
+; 1K ROM bank #1
+
     RORG    $1000
 
 L1000
@@ -312,37 +1035,37 @@ L100c
     txs                             ;2
     inx                             ;2
     bne     L100c                   ;2/3
-    ldx     #$01                    ;2          ROM bank 0 into slice 0
+    ldx     #$01                    ;2          ROM bank 1 into segment 0
     stx     ram_80                  ;3
-    inx                             ;2          ROM bank 1 into slice 1
-    stx     slice1Bank              ;3
-    ldx     #$04                    ;2          RAM bank 0 into slice 2 for reading
-    stx     slice2Bank              ;3
-    ldx     #$0d                    ;2          special bank into slice 3 for writing
-    stx     slice3Bank              ;3                          
-    lda     SL3_B3                  ;4          switch ROM bank 3 into slice 3
-    lda     SL2_R0                  ;4          switch RAM bank 0 into slice 2 for reading (L1800..)
+    inx                             ;2          ROM bank 2 into segment 1
+    stx     seg1Bank                ;3
+    ldx     #$04                    ;2          RAM bank 0 into segment 2 for reading
+    stx     seg2Bank                ;3
+    ldx     #$0d                    ;2          special bank into segment 3 for writing
+    stx     seg3Bank                ;3                          
+    lda     SG3_B0                  ;4          switch ROM bank 0 into segment 3
+    lda     SG2_R0                  ;4          switch RAM bank 0 into segment 2 for reading (L1800..)
     jsr     Check1800               ;6
     bne     Failed                  ;2/3
-    lda     SL2_R1                  ;4          switch RAM bank 1 into slice 2 for reading (L1800..)
+    lda     SG2_R1                  ;4          switch RAM bank 1 into segment 2 for reading (L1800..)
     jsr     Check1800               ;6
     beq     .success                ;2/3
 Failed
-    lda     SL2_W0                  ;4          switch RAM bank 0 into slice 2 for writing 
+    lda     SG2_W0                  ;4          switch RAM bank 0 into segment 2 for writing 
     ldx     #$00                    ;2
     stx     L1802                   ;4
-    lda     SL2_W1                  ;4          switch RAM bank 1 into slice 2 for writing
+    lda     SG2_W1                  ;4          switch RAM bank 1 into segment 2 for writing
     stx     L1802                   ;4
-    lda     #$00                    ;2          ROM bank 3 into slice 3
-    sta     slice3Bank              ;3
+    lda     #$00                    ;2          ROM bank 3 into segment 3
+    sta     seg3Bank                ;3
     lda     #$ff                    ;2
-    sta     slice3BankB             ;3          invalid
+    sta     seg3BankB               ;3          invalid
     lda     #<L1c00                 ;2
     ldx     #>L1c00                 ;2
     jmp     ReadData                ;3   =  35
 
 .success
-    lda     SL2_R0                  ;4          switch RAM bank 0 into slice 2 for reading
+    lda     SG2_R0                  ;4          switch RAM bank 0 into segment 2 for reading
     lda     L1808                   ;4          undefined!
     ldx     L1809                   ;4          undefined!
     jmp     ReadData                ;3   =  15
@@ -403,7 +1126,7 @@ Draw48Pixel
     sta     GRP0                    ;3
     rts                             ;6   =  22
 
-L10b3 SUBROUTINE
+SetupPtrList SUBROUTINE
 ;write $1c00, $1c80, $1d00, $1d80, $1e00, $1e80 into $8f..9a
     ldx     #$00                    ;2
     lda     #<L1c00                 ;2
@@ -422,13 +1145,13 @@ L10c3
     rts                             ;6   =  12
 
 L10c9 SUBROUTINE
-    lda     SL1_B2                  ;4                  switch ROM bank 2 into slice 1
+    lda     SG1_B3                  ;4                  switch ROM bank 3 into segment 1
     lda     #<L1400                 ;2                  "jmp Load" -> ??? (from ROM $1800)
     ldx     #>L1400                 ;2                  
     jmp     SetDataPtr2             ;3   =  11
 
 L10d3 SUBROUTINE
-    lda     SL2_R1                  ;4                  switch RAM bank 1 into slice 2 for reading (L1800..)
+    lda     SG2_R1                  ;4                  switch RAM bank 1 into segment 2 for reading (L1800..)
     lda     L1808                   ;4
     ldx     L1809                   ;4   =  12
 SetDataPtr2
@@ -437,12 +1160,12 @@ SetDataPtr2
     jsr     JmpToPtr2               ;6   =  12
 SetupBanks
     stx     tmpVarDE                ;3
-    ldx     slice1Bank              ;3          2?
-    lda     SL1_BX,x                ;4                  switch ROM/RAM bank X(1?) into slice 1
-    ldx     slice2Bank              ;3          4?
-    lda     SL2_BX,x                ;4                  switch ROM/RAM bank X(3,?) into slice 2
-    ldx     slice3Bank              ;3          13|0?
-    lda     SL3_BX,x                ;4                  switch ROM/RAM bank X(0,13?) into slice 3
+    ldx     seg1Bank                ;3          2?
+    lda     SG1_BX,x                ;4                  switch ROM/RAM bank X(1?) into segment 1
+    ldx     seg2Bank                ;3          4?
+    lda     SG2_BX,x                ;4                  switch ROM/RAM bank X(3,?) into segment 2
+    ldx     seg3Bank                ;3          13|0?
+    lda     SG3_BX,x                ;4                  switch ROM/RAM bank X(0,13) into segment 3
     ldx     tmpVarDE                ;3
     rts                             ;6   =  33
 
@@ -450,7 +1173,7 @@ JmpToPtr2 SUBROUTINE
     jmp.ind (dataPtr2)              ;5   =   5          $1ece?|Load???
 
 L10fa SUBROUTINE
-    lda     SL2_R0                  ;4                  switch RAM bank 0 into slice 2 for reading
+    lda     SG2_R0                  ;4                  switch RAM bank 0 into segment 2 for reading
     lda     L1806                   ;4
     ldx     L1807                   ;4
     jmp     SetDataPtr2             ;3   =  15
@@ -470,8 +1193,8 @@ ReadData SUBROUTINE
     lda     #$0a                    ;2
     sta     inputDelay              ;3
     sta     flashTimer              ;3   =  41
-L1123
-    jsr     L12bf                   ;6
+.loopFrame
+    jsr     NextFrame               ;6
     ldy     #$08                    ;2          Y = 8
     lda     (dataPtr),y             ;5          $1c08 = $64, (L1810)
     sta     TIM64T                  ;4
@@ -510,7 +1233,7 @@ L1134
     lda     (dataPtr),y             ;5          $1c05 = $00; $180d = 
     jsr     GetHiPtrBank            ;6
     sta     timeCnt+1               ;3          another pointer hi (A = $10..$1f)
-    lda     SL1_BX,x                ;4          X = (dataPtr),y/16
+    lda     SG1_BX,x                ;4          X = (dataPtr),y/16
     lda     #$06                    ;2
     sta     pulseCount              ;3
     jsr     L10d3                   ;6   = 113
@@ -524,7 +1247,7 @@ L1178
     stx     unusedPtr               ;3
     jsr     GetHiPtrBank            ;6
     sta     unusedPtr+1             ;3
-    stx     slice3BankB             ;3
+    stx     seg3BankB               ;3
     lda     #$01                    ;2
     sta     unusedFlag              ;3   =  38
 L118f
@@ -536,7 +1259,7 @@ L118f
     beq     L11a0                   ;2/3
     sta     dataPtr2+1              ;3
     stx     dataPtr2                ;3
-    jsr     L11b3                   ;6   =  30
+    jsr     .jmpPtr2                ;6   =  30
 L11a0
     ldy     #$01                    ;2          Y = 1
     lda     (dataPtr),y             ;5          $1c01 = $1e
@@ -547,7 +1270,7 @@ L11a0
     sta     TIM64T                  ;4
     jmp     L12a6                   ;3   =  28
 
-L11b3 SUBROUTINE
+.jmpPtr2
     jmp.ind (dataPtr2)              ;5   =   5
 
 L11b6
@@ -574,20 +1297,20 @@ L11d9
     sta     drawPos                 ;3
     ldy     #$14                    ;2
     sty     drawPtrIdx              ;3   =  10
-L11e0
-    jsr     FillRam85Lst            ;6
+.loopDraw
+    jsr     FillDrawList            ;6
     lda     drawFlags               ;3
     bmi     L122a                   ;2/3!
-    beq     L11f5                   ;2/3
+    beq     .contDraw               ;2/3
     cpy     ram_D2                  ;3
-    bne     L11f5                   ;2/3
+    bne     .contDraw               ;2/3
     pha                             ;3
     pla                             ;4
     pha                             ;3
     pla                             ;4
     lda     #$fe                    ;2
     sta     PF1                     ;3   =  37
-L11f5 ;.loop?
+.contDraw ;.loop?
     lda     drawEnd                 ;3
     clc                             ;2
     adc     drawPos                 ;3
@@ -612,15 +1335,15 @@ L1210
     bcs     L1271                   ;2/3
     sta     drawPos                 ;3
     jsr     WaitLines               ;6
-    jsr     L10b3                   ;6
+    jsr     SetupPtrList            ;6
     jsr     SetupBanks              ;6   =  38
 L1227
-    jmp     L11e0                   ;3   =   3
+    jmp     .loopDraw               ;3   =   3
 
 L122a
     asl                             ;2          A = drawFlags
     bmi     L123c                   ;2/3
-    lda     SL2_B3                  ;4          switch ROM bank 3 into slice 2
+    lda     SG2_B0                  ;4          switch ROM bank 0 into segment 2
     jsr     DrawDialPad             ;6
     jsr     SetupBanks              ;6
     jsr     XPosSprites             ;6
@@ -645,8 +1368,8 @@ L123c
     bne     .loop                   ;2/3
     jsr     GetHiPtrBank            ;6          A -> A, X
     sta     ram_9A                  ;3
-    lda     SL3_BX,x                ;4          X = (dataPtr2),y / 16
-    jmp     L11f5                   ;3   =  32
+    lda     SG3_BX,x                ;4          X = (dataPtr2),y / 16
+    jmp     .contDraw               ;3   =  32
 
 L1261
     asl                             ;2          A = drawFlags << 2
@@ -681,7 +1404,7 @@ L1271
     lda     (dataPtr),y             ;5
     beq     L1299                   ;2/3
     sta     dataPtr2+1              ;3
-    jsr     L11b3                   ;6   =  32
+    jsr     .jmpPtr2                ;6   =  32
 L1299
     lda     animState               ;3
     bne     L12a3                   ;2/3
@@ -692,7 +1415,7 @@ L12a3
     jsr     HandleInput             ;6   =   6
 L12a6
     jsr     WaitTim                 ;6
-    jmp     L1123                   ;3   =   9
+    jmp     .loopFrame              ;3   =   9
 
 VerticalSync SUBROUTINE
     lda     #$02                    ;2
@@ -706,7 +1429,7 @@ VerticalSync SUBROUTINE
     sta     VSYNC                   ;3
     rts                             ;6   =  29
 
-L12bf SUBROUTINE
+NextFrame SUBROUTINE
     jsr     VerticalSync            ;6
     lda     #$5a                    ;2          = ~720 cycles
     sta     TIM8T                   ;4
@@ -739,10 +1462,10 @@ L12eb
     sta     COLUP0                  ;3
     sta     COLUP1                  ;3   =  15
 L12f7
-    jsr     L10b3                   ;6
-    ldx     slice3BankB             ;3
+    jsr     SetupPtrList            ;6
+    ldx     seg3BankB               ;3
     bmi     L1304                   ;2/3!
-    lda     SL3_BX,x                ;4
+    lda     SG3_BX,x                ;4
     jsr     L10fa                   ;6   =  21
 L1304
     jsr     WaitTim                 ;6
@@ -777,7 +1500,7 @@ GetHiPtrBank SUBROUTINE
     ora     #$10                    ;2
     rts                             ;6   =  27
 
-FillRam85Lst SUBROUTINE
+FillDrawList SUBROUTINE
     ldx     #$00                    ;2
     ldy     drawPtrIdx              ;3
     lda     (dataPtr),y             ;5
@@ -829,22 +1552,22 @@ L135a
     bne     L137a                   ;2/3
     sty     dialType                ;3   =  46  Y = $ff
 L137a
-    lda     SL2_R1                  ;4          switch RAM bank 1 into slice 2 for reading (L1800..)
+    lda     SG2_R1                  ;4          switch RAM bank 1 into segment 2 for reading (L1800..)
     lda     L1802                   ;4
     bne     L1392                   ;2/3
-    lda     SL2_W1                  ;4          switch RAM bank 1 into slice 2 for writing (L1800..)
+    lda     SG2_W1                  ;4          switch RAM bank 1 into segment 2 for writing (L1800..)
     lda     dialType                ;3          backup dialType and speed
     sta     L180c                   ;4
     lda     dialSpeed               ;3
     sta     L180d                   ;4
-    lda     SL2_R1                  ;4   =  32  switch RAM bank 1 into slice 2 for reading (L1800..)
+    lda     SG2_R1                  ;4   =  32  switch RAM bank 1 into segment 2 for reading (L1800..)
 L1392
     rts                             ;6   =   6
 
 L1393
     lda     #$00                    ;2
     sta     dialCount               ;3
-    jmp     Failed                  ;3   =   8 *
+    jmp     Failed                  ;3   =   8 
 
 L139a
     lda     #$00                    ;2
@@ -865,19 +1588,19 @@ DrawCalling
     ldx     #$00                    ;2
     ldy     #>CallingGfx            ;2
     lda     #<CallingGfx            ;2   =  12
-L13ba
+.loopPtr
     sta     ptrLst,x                ;4
     inx                             ;2
     sty     ptrLst,x                ;4
     inx                             ;2
     clc                             ;2
     adc     #$07                    ;2
-    bcc     L13c6                   ;2/3
+    bcc     .skipHi                 ;2/3
     iny                             ;2   =  20
-L13c6
+.skipHi
     cpx     #$0c                    ;2
-    bne     L13ba                   ;2/3 =   4
-L13ca
+    bne     .loopPtr                ;2/3 =   4
+.loopFrame
     jsr     VerticalSync            ;6
     lda     INPT4                   ;3
     and     INPT5                   ;3
@@ -901,13 +1624,13 @@ L13d7
     ldx     #$0c                    ;2
     jsr     WaitLines               ;6
     inc     frameCnt                ;5
-    jmp     L13ca                   ;3   =  65
+    jmp     .loopFrame              ;3   =  65
 
 
 ;***********************************************************
-;      Bank 1
+;      Bank 2
 ;***********************************************************
-; 1K ROM bank #1
+; 1K ROM bank #2
 
 ;    RORG    $1400
 
@@ -1004,7 +1727,7 @@ CallingGfx
     .byte   %00000000 ; |        |            $146c (G)
 
 RestoreDialData SUBROUTINE
-    lda     SL2_R1                  ;4          switch RAM bank 1 into slice 2 for reading (L1800..)
+    lda     SG2_R1                  ;4          switch RAM bank 1 into segment 2 for reading (L1800..)
     lda     L180c                   ;4          restore dialType and speed
     sta     dialType                ;3
     lda     L180d                   ;4
@@ -1261,7 +1984,7 @@ PulseGapLo
 PulseGapHi
     .byte   $01,$02                         ; $1618 (D)
 
-L161a ; fake tone dialing sound frequencies:
+L161a ; tone dialing sound frequencies:
     .byte   $17,$10,$14
     .byte   $18,$11,$15
     .byte   $19,$12,$16
@@ -1479,13 +2202,13 @@ L1745
 
 L175b
     lda     yDial                   ;3
-    beq     .exitDir                   ;2/3
+    beq     .exitDir                ;2/3
     dec     yDial                   ;5
     rts                             ;6   =  16
 
 L1762
     jsr     L17b4                   ;6
-    bcc     .exitDir                   ;2/3
+    bcc     .exitDir                ;2/3
     sty     ram_D2                  ;3
     tya                             ;2
     sec                             ;2
@@ -1599,14 +2322,14 @@ DigitsDonePtr
 
 
 ;***********************************************************
-;      Bank 2
+;      Bank 3
 ;***********************************************************
-; 1K ROM bank #2
+; 1K ROM bank #3
 
 ram_C0          = $c0               ;   used differently here
 ram_C1          = $c1               ;   used differently here
 
-    RORG    $1400                   ;               code for slice 1/3
+    RORG    $1400                   ;               code for segment 1/3
 
 Load SUBROUTINE
     jmp     .load                   ;3   =   3 
@@ -1718,12 +2441,12 @@ LoadData SUBROUTINE
 .retryLoop
     lda     ram_D7                  ;3         
     bne     .loopBytes              ;2/3       
-    lda     SL0_B3                  ;4              switch ROM bank 3 into slice 0
+    lda     SG0_B0                  ;4              switch ROM bank 0 into segment 0
     jsr     SendLoadHeader20        ;6   =  15      code in bank 3
 .loopBytes
-    lda     SL0_R1                  ;4              switch RAM bank 1 into slice 0 for executing
+    lda     SG0_R1                  ;4              switch RAM bank 1 into segment 0 for executing
     jsr     $100f                   ;6              execute code in RAM bank 1 (LoadByte)
-    ldx     SL0_B0                  ;4              switch ROM bank 0 into slice 0
+    ldx     SG0_B1                  ;4              switch ROM bank 1 into segment 0
     bcs     .failed                 ;2/3       
     jsr     StoreByte               ;6         
     jmp     .loopBytes              ;3   =  25 
@@ -1779,12 +2502,12 @@ InitialWait SUBROUTINE
 Wait4High SUBROUTINE
 ; waits ~56 seconds
     ldy     #$00                    ;2         
-    beq     L1503                   ;3 =     5
+    beq     .wait4Hi                ;3 =     5
 
-Wait4Low SUBROUTINE
+Wait4Low
 ; waits ~11 seconds
     ldy     #$01                    ;2   =   2 
-L1503
+.wait4Hi
     lda     #50                     ;2         
     sta     tmpVarDE                ;3         
     ldx     WaitTbl2,y              ;4   =   9  0|50
@@ -1980,7 +2703,7 @@ L1625
     adc     TIM1T                   ;4         
     sta     TIM8T                   ;4         
     inc     loadFlag                ;5          enable load flag     
-    jsr     InitStoreD7             ;6   =  40 
+    jsr     InitStoreParams         ;6   =  40 
 L1640
     lda     TIM8T                   ;4         
     bpl     L1640                   ;2/3       
@@ -2055,20 +2778,20 @@ StoreByte SUBROUTINE
     bit     storeFlags              ;3         
     bmi     L16e0                   ;2/3       
     ldy     #$00                    ;2         
-    sta     (dataPtr2),y            ;6              = L1308..|(L180a)
+    sta     (dataPtr2),y            ;6              = L1308..|(L180a)|$D7..
     jsr     UpdateCRC               ;6         
     lda     ram_D7                  ;3         
     cmp     ram_D0                  ;3         
     bne     L16ea                   ;2/3       
     inc     dataPtr2                ;5         
-    bne     L16d7                   ;2/3       
+    bne     .skipHi                 ;2/3       
     inc     dataPtr2+1              ;5   =  39 
-L16d7
+.skipHi
     dec     storeCnt                ;5         
-    beq     L16dc                   ;2/3       
+    beq     .done                   ;2/3       
     rts                             ;6   =  13 
     
-L16dc
+.done
     sec                             ;2         
     ror     storeFlags              ;5         
     rts                             ;6   =  13 
@@ -2085,23 +2808,23 @@ L16ea
     rts                             ;6   =  11 
     
 L16ed
-    bvc     L16dc                   ;2/3       
+    bvc     .done                   ;2/3       
     lda     storeFlags              ;3         
     and     #$0f                    ;2         
     beq     L16f8                   ;2/3       
-    jmp     L171e                   ;3   =  12 
+    jmp     .endStore               ;3   =  12 
     
 L16f8
     lda     ram_D8                  ;3         
     cmp     ram_D1                  ;3         
     bne     L16ea                   ;2/3       
     lda     ram_DA                  ;3         
-    beq     L171e                   ;2/3       
+    beq     .endStore               ;2/3       
     sta     storeCnt                ;3         
     lda     ram_DB                  ;3         
     and     #$0f                    ;2         
     tax                             ;2         
-    lda     SL2_WX,x                ;4         
+    lda     SG2_WX,x                ;4         
     lda     ram_DD                  ;3         
     eor     #$18                    ;2         
     sta     dataPtr2+1              ;3         
@@ -2112,7 +2835,7 @@ L16f8
     jsr     ResetCRC                ;6         
     rts                             ;6   =  58 
     
-L171e
+.endStore
     dec     loadFlag                ;5          disable load flag    
     lda     ram_D9                  ;3         
     and     #$f0                    ;2         
@@ -2144,9 +2867,9 @@ L1747
 L1750
     lsr     ram_D9                  ;5         
     bcs     L175d                   ;2/3       
-    lda     SL0_B3                  ;4              switch ROM bank 3 into slice 0
-    jsr     L12d0                   ;6              code in bank 3
-    lda     SL0_B0                  ;4   =  21      switch ROM bank 0 into slice 0
+    lda     SG0_B0                  ;4              switch ROM bank 0 into segment 0
+    jsr     AnimDoubleCurtain       ;6              code in bank 3
+    lda     SG0_B1                  ;4   =  21      switch ROM bank 1 into segment 0
 L175d
     lsr     ram_D9                  ;5         
     bcs     L1791                   ;2/3       
@@ -2155,15 +2878,15 @@ L175d
     lda     ram_DC                  ;3         
     jsr     Div16                   ;6         
     tax                             ;2         
-    lda     SL0_BX,x                ;4              
+    lda     SG0_BX,x                ;4              
     lda     ram_DD                  ;3         
     jsr     Div16                   ;6         
     tax                             ;2         
-    lda     SL2_BX,x                ;4         
+    lda     SG2_BX,x                ;4         
     lda     ram_DD                  ;3         
     and     #$0f                    ;2         
     tax                             ;2         
-    lda     SL3_BX,x                ;4         
+    lda     SG3_BX,x                ;4         
     ldx     #$06                    ;2   =  57 
 .loopCopy
     lda     RamCode,x               ;4         
@@ -2176,7 +2899,7 @@ L175d
     jmp.w   ramCode                 ;3   =  22 
     
 L1791
-    jsr     L17b4                   ;6         
+    jsr     L17b4a                  ;6         
     jsr     L179c                   ;6         
     lda     ram_DB                  ;3         
     bpl     L1731                   ;2/3       
@@ -2186,8 +2909,8 @@ L179c SUBROUTINE
     jmp.ind (ram_DC)                ;5   =   5 
 
 L179f
-    jsr     L17b4                   ;6         
-    stx     slice2Bank              ;3         
+    jsr     L17b4a                  ;6         
+    stx     seg2Bank                ;3         
     ldx     #$ff                    ;2         
     txs                             ;2         
     lda     ram_DC                  ;3              -> dataPtr
@@ -2195,17 +2918,17 @@ L179f
     jmp     (L1003)                 ;5   =  24      -> ReadData?
 
 RamCode 
-    lda     SL1_BX,x                ;4         
+    lda     SG1_BX,x                ;4         
     jmp     (L1ffc)                 ;5   =   9 
 
-L17b4 SUBROUTINE
+L17b4a SUBROUTINE
     lda     ram_DB                  ;3         
     and     #$0f                    ;2         
     tax                             ;2         
     lda     ram_DD                  ;3         
     eor     #$18                    ;2         
     sta     ram_DD                  ;3         
-    lda     SL2_BX,x                ;4         
+    lda     SG2_BX,x                ;4         
     rts                             ;6   =  25 
     
 Div16 SUBROUTINE
@@ -2215,12 +2938,12 @@ Div16 SUBROUTINE
     lsr                             ;2         
     rts                             ;6   =  14 
     
-InitStoreD7 SUBROUTINE
+InitStoreParams SUBROUTINE
     lda     #$00                    ;2         
     sta     storeFlags              ;3         
-    lda     #<ram_D7                ;2         
+    lda     #<paramLst              ;2         
     sta     dataPtr2                ;3         
-    lda     #>ram_D7                ;2         
+    lda     #>paramLst              ;2         
     sta     dataPtr2+1              ;3         
     lda     #$07                    ;2         
     sta     storeCnt                ;3         
@@ -2252,737 +2975,3 @@ SendByte SUBROUTINE
     .byte   $4f,$4f,$00,$00,$4f,$4f,$06,$05 ; $17f8 (D)
 
 
-;***********************************************************
-;      Bank 3
-;***********************************************************
-; 1K ROM bank #3
-
-    RORG    $1c00                           ;               code for slice 3/3
-
-L1c00
-    .byte   $c1                             ; $1c00 (D) ram_AF
-    .byte   $1e                             ; $1c01 (D) ram_D2+ram_B1
-    .byte   $00,$00,$00,$00                 ; $1c02 (D) ram_C6, jmpIdx, timeCnt, timeCnt+1
-    .word   MessagePtrs                     ; $1c06
-    .byte   $64                             ; $1c08 -> TIM64T
-    .byte   $89                             ; $1c09 -> TIM64T
-    .byte   $7f                             ; $1c0a -> ram_B0
-    .byte   $0a                             ; $1c0b -> WaitLines
-    .word   L1c75                               
-    .byte   $00,$00,$00                     ; $1c0e (D)    ? ? dataPtr2
-    .byte   $00                             ; $1c11 (D)    dataPtr2+1
-    .word   L1c69
-    .byte   $c0,$00,$05,$03,$00,$00,$c0     ; $1c14 (D)
-    .byte   $05,$05,$00,$00,$00,$ff         ; $1c1b (D)
-
-MessagePtrs
-    .word   ReadManual0, ReadManual1, ReadManual2
-    .word   ReadManual3, ReadManual4, ReadManual5-$1000
-ReadManual0
-    .byte   %00001110 ; |    ### |            $1c2d (G)     READ MANUAL
-    .byte   %00001010 ; |    # # |            $1c2e (G)
-    .byte   %11001110 ; |##  ### |            $1c2f (G)
-    .byte   %00001100 ; |    ##  |            $1c30 (G)
-    .byte   %00001010 ; |    # # |            $1c31 (G)
-
-    .byte   %00001110 ; |    ### |            $1c32 (G)     PRESS RESET
-    .byte   %00001010 ; |    # # |            $1c33 (G)
-    .byte   %11001110 ; |##  ### |            $1c34 (G)
-    .byte   %00001000 ; |    #   |            $1c35 (G)
-    .byte   %00001000 ; |    #   |            $1c36 (G)
-ReadManual1
-    .byte   %11101110 ; |### ### |            $1c37 (G)
-    .byte   %10001010 ; |#   # # |            $1c38 (G)
-    .byte   %11001110 ; |##  ### |            $1c39 (G)
-    .byte   %10001010 ; |#   # # |            $1c3a (G)
-    .byte   %11101010 ; |### # # |            $1c3b (G)
-
-    .byte   %11101110 ; |### ### |            $1c3c (G)
-    .byte   %10101000 ; |# # #   |            $1c3d (G)
-    .byte   %11101100 ; |### ##  |            $1c3e (G)
-    .byte   %11001000 ; |##  #   |            $1c3f (G)
-    .byte   %10101110 ; |# # ### |            $1c40 (G)
-ReadManual2
-    .byte   %11000010 ; |##    # |            $1c41 (G)
-    .byte   %10100011 ; |# #   ##|            $1c42 (G)
-    .byte   %10100010 ; |# #   # |            $1c43 (G)
-    .byte   %10100010 ; |# #   # |            $1c44 (G)
-    .byte   %11000010 ; |##    # |            $1c45 (G)
-
-    .byte   %11101110 ; |### ### |            $1c46 (G)
-    .byte   %10001000 ; |#   #   |            $1c47 (G)
-    .byte   %11101110 ; |### ### |            $1c48 (G)
-    .byte   %00100010 ; |  #   # |            $1c49 (G)
-    .byte   %11101110 ; |### ### |            $1c4a (G)
-ReadManual3
-    .byte   %00101110 ; |  # ### |            $1c4b (G)
-    .byte   %01101010 ; | ## # # |            $1c4c (G)
-    .byte   %10101110 ; |# # ### |            $1c4d (G)
-    .byte   %00101010 ; |  # # # |            $1c4e (G)
-    .byte   %00101010 ; |  # # # |            $1c4f (G)
-
-    .byte   %00111011 ; |  ### ##|            $1c50 (G)
-    .byte   %00101010 ; |  # # # |            $1c51 (G)
-    .byte   %00111011 ; |  ### ##|            $1c52 (G)
-    .byte   %00110010 ; |  ##  # |            $1c53 (G)
-    .byte   %00101011 ; |  # # ##|            $1c54 (G)
-ReadManual4
-    .byte   %10010101 ; |#  # # #|            $1c55 (G)
-    .byte   %11010101 ; |## # # #|            $1c56 (G)
-    .byte   %11110101 ; |#### # #|            $1c57 (G)
-    .byte   %10110101 ; |# ## # #|            $1c58 (G)
-    .byte   %10010111 ; |#  # ###|            $1c59 (G)
-
-    .byte   %10111011 ; |# ### ##|            $1c5a (G)
-    .byte   %00100010 ; |  #   # |            $1c5b (G)
-    .byte   %00111011 ; |  ### ##|            $1c5c (G)
-    .byte   %00001010 ; |    # # |            $1c5d (G)
-    .byte   %10111011 ; |# ### ##|            $1c5e (G)
-ReadManual5
-    .byte   %01110100 ; | ### #  |            $1c5f (G)
-    .byte   %01010100 ; | # # #  |            $1c60 (G)
-    .byte   %01110100 ; | ### #  |            $1c61 (G)
-    .byte   %01010100 ; | # # #  |            $1c62 (G)
-    .byte   %01010111 ; | # # ###|            $1c63 (G)
-
-    .byte   %10111000 ; |# ###   |            $1c64 (G)
-    .byte   %00010000 ; |   #    |            $1c65 (G)
-    .byte   %10010000 ; |#  #    |            $1c66 (G)
-    .byte   %00010000 ; |   #    |            $1c67 (G)
-    .byte   %10010000 ; |#  #    |            $1c68 (G)
-
-L1c69
-    inc     frameCnt                ;5
-    bne     L1c74                   ;2/3
-    lda     color                   ;3
-    clc                             ;2
-    adc     #$50                    ;2
-    sta     color                   ;3   =  17
-L1c74
-    rts                             ;6   =   6
-
-L1c75 SUBROUTINE
-    cpx     #$02                    ;2              RESET?
-    beq     L1c7a                   ;2/3             yes
-    rts                             ;6   =  10       no, ignore
-
-L1c7a
-    ldy     SL2_W1                  ;4              switch RAM bank 1 into slice 2 for writing (L1800..)
-    ldx     #$00                    ;2   =   6
-.loopCopy
-    lda     L1c9a,x                 ;4              copy code into RAM for execution
-    sta     L180e,x                 ;5              
-    inx                             ;2
-    cpx     #$08                    ;2              8 bytes
-    bne     .loopCopy               ;2/3
-    lda     #$10                    ;2
-    sta     ram_D2                  ;3
-    lda     #$00                    ;2
-    sta     ram_D3                  ;3
-    sta     dialCount               ;3
-    jsr     Dial                    ;6
-    jmp     L13a3                   ;3   =  37
-
-L1c9a
-    .byte   99                      ;       L180e   -> timeCnt+1
-    jmp     (L1403)                 ;       L180f   -> LoadByte (called via jmp $100f)
-    .word   PhoneNum                ;       L1812   -> numberPtr
-    .word   $ffff                   ;       L1814   -> 2nd numberPtr
-
-Check1800 SUBROUTINE
-    ldx     #$03                    ;2
-    lda     #$e9                    ;2   =   4
-.loopRAM
-    cmp     L1802,x                 ;4              undefined! ($1802..$1805 == $48,$a4,$d2,$e9)
-;  IF ORIGINAL
-    bne     .failed                 ;2/3
-;  ELSE
-;    ds      2, $ea
-;  ENDIF
-    asl                             ;2
-    dex                             ;2
-    bne     .loopRAM                ;2/3
-    lda     #>L1800                 ;2
-    sta     dataPtr2+1              ;3
-    ldy     #<L1800                 ;2
-    sty     dataPtr2                ;3
-    tya                             ;2   =  24  = 0
-.loop
-    clc                             ;2
-    adc     (dataPtr2),y            ;5          undefined! 
-    inc     dataPtr2                ;5
-    bne     .skipHi                 ;2/3
-    inc     dataPtr2+1              ;5   =   9
-.skipHi
-    ldx     L1800                   ;4          undefined! 
-    cpx     dataPtr2                ;3
-    bne     .loop                   ;2/3
-    ldx     L1801                   ;4          undefined! 
-    cpx     dataPtr2+1              ;3
-    bne     .loop                   ;2/3
-  IF ORIGINAL
-    cmp     (dataPtr2),y            ;5   =  23
-  ELSE
-    lda     #0
-  ENDIF
-.failed
-    rts                             ;6   =   6
-
-    .byte   $04,$11,$6c,$33,$fd,$20,$31,$10 ; $1cd2 (D)
-    .byte   $c9,$ba,$f0,$de,$c9,$e0         ; $1cda (D)
-
-;===============================================================================
-
-    RORG . - $400                   ;           code for slice 2
-    
-XPosSprite0 SUBROUTINE
-    sta     WSYNC                   ;3   =  23
-;---------------------------------------
-    ldx     #$07                    ;2   =   2
-L18e4
-    dex                             ;2
-    bne     L18e4                   ;2/3
-    nop                             ;2
-    sta     RESP0                   ;3
-    sta     WSYNC                   ;3   =  12
-;---------------------------------------
-    lda     #$03                    ;2
-    sta     NUSIZ0                  ;3
-    lda     #$00                    ;2
-    sta     NUSIZ1                  ;3
-    sta     VDELP0                  ;3
-    sta     VDELP1                  ;3
-    rts                             ;6   =  22
-
-DDD SUBROUTINE
-.loop 
-    nop                             ;2
-    lda     (ram_91),y              ;5
-    and     ram_96|$100             ;4          = $ff       flash
-    eor     ram_99|$100             ;4          = $00|$ff   invert
-    tax                             ;2
-    lda     (ram_93),y              ;5
-    and     ram_97|$100             ;4          = $ff
-    eor     ram_9A|$100             ;4          = $00|$ff
-    stx     GRP0                    ;3
-    jmp     .cont                   ;3   =  36  weird!?
-
-.cont
-    sta     GRP0                    ;3
-    inc     drawIdx                 ;5
-DrawDialDigits
-    ldy     drawIdx                 ;3
-    lda     (ram_8F),y              ;5
-    and     ram_95|$100             ;4          = $ff
-    sta     WSYNC                   ;3   =  23
-;---------------------------------------
-    eor     ram_98|$100             ;4          = $00|$ff
-    sta     GRP0                    ;3
-    cpy     drawEnd                 ;3
-    bne     .loop                   ;2/3!
-    lda     #$00                    ;2
-    sta     GRP0                    ;3
-    rts                             ;6   =  23
-    
-DrawDialPad SUBROUTINE
-    lda     drawIdx                 ;3
-    sta     COLUPF                  ;3
-    lda     drawEnd                 ;3
-    sta     drawEndCopy             ;3   =  12
-    lda     #%11111110              ;2
-    sta     PF2                     ;3
-    jsr     XPosSprite0             ;6
-    ldx     #$06                    ;2
-    jsr     WaitLines               ;6
-    lda     #<DigitCol0             ;2          1 4 7 *
-    sta     ram_8F                  ;3
-    lda     #<DigitCol1             ;2          2 5 8 0
-    sta     ram_91                  ;3
-    lda     #<DigitCol2             ;2          3 6 9 #
-    sta     ram_93                  ;3
-    lda     #>DigitCol0             ;2
-    sta     ram_90                  ;3
-    lda     #>DigitCol1             ;2
-    sta     ram_92                  ;3
-    lda     #>DigitCol2             ;2
-    sta     ram_94                  ;3
-    ldy     #$00                    ;2
-    sty     drawIdx                 ;3
-    tya                             ;2   =  56
-.loopRow
-    clc                             ;2
-    adc     #DIGIT_H                ;2
-    sta     drawEnd                 ;3
-    sty     tmpVarDE                ;3
-    jsr     L19a7                   ;6
-    jsr     DrawDialDigits          ;6
-    ldx     #$03                    ;2
-    jsr     WaitLines               ;6
-    ldy     tmpVarDE                ;3
-    iny                             ;2
-    lda     drawIdx                 ;3
-    cmp     #DIGIT_H*3+1            ;2
-    bmi     .loopRow                ;2/3
-    ldx     #$06                    ;2
-    jsr     WaitLines               ;6
-    lda     #$00                    ;2
-    sta     PF2                     ;3
-    ldx     #$03                    ;2
-    jsr     WaitLines               ;6
-    lda     #$00                    ;2
-    sta     drawIdx                 ;3
-    lda     #DIGIT_H                ;2
-    sta     drawEnd                 ;3
-    jsr     SetupBottomDigits       ;6          prepare digits at bottom squares
-    jsr     FlashCurrentDigit       ;6
-    jsr     DrawDialDigits          ;6
-    lda     #YELLOW|$f              ;2
-    sta     COLUPF                  ;3
-    lda     #%10011000              ;2
-    sta     WSYNC                   ;3   = 101
-;---------------------------------------
-    sta     PF2                     ;3          underline
-    lda     #$00                    ;2
-    sta     WSYNC                   ;3   =   8
-;---------------------------------------
-    sta     PF2                     ;3
-    rts                             ;6   =   9
-    
-L19a7 SUBROUTINE
-    jsr     ClearFlash              ;6
-    cpy     yDial                   ;3
-    bne     .exit                   ;2/3
-    ldx     xDial                   ;3
-    dec     ram_98,x                ;6   =  20      invert
-.exit
-    rts                             ;6   =   6
-
-FlashCurrentDigit ;SUBROUTINE
-    jsr     ClearFlash              ;6
-    ldx     numDigits               ;3
-    cpx     #$03                    ;2
-    beq     .exit                   ;2/3
-    lda     flashState              ;3
-    sta     ram_95,x                ;4              flash
-    dec     flashTimer              ;5
-    bne     .exit                   ;2/3
-    lda     flashState              ;3
-    eor     #$ff                    ;2
-    sta     flashState              ;3
-    lda     #$14                    ;2
-    sta     flashTimer              ;3
-    rts                             ;6   =  46
-
-ClearFlash SUBROUTINE
-    ldx     #$ff                    ;2
-    stx     ram_95                  ;3
-    stx     ram_96                  ;3
-    stx     ram_97                  ;3
-    inx                             ;2
-    stx     ram_98                  ;3
-    stx     ram_99                  ;3
-    stx     ram_9A                  ;3
-    rts                             ;6   =  28
-        
-SetupBottomDigits SUBROUTINE
-    lda     #<BlockGfx              ;2
-    sta     ram_8F                  ;3
-    sta     ram_91                  ;3
-    sta     ram_93                  ;3
-    lda     #>BlockGfx              ;2
-    sta     ram_90                  ;3
-    sta     ram_92                  ;3
-    sta     ram_94                  ;3
-    ldx     #0                      ;2
-    lda     drawEndCopy             ;3
-    beq     .drawBlocks             ;2/3!
-.loop
-    cpx     numDigits               ;3
-    bpl     .drawBlocks             ;2/3!
-    ldy     digitLst,x              ;4
-    lda     DigitPtr,y              ;4
-    clc                             ;2
-    adc     #<DigitGfx              ;2
-    pha                             ;3
-    lda     #$00                    ;2
-    adc     #>DigitGfx              ;2
-    pha                             ;3
-    txa                             ;2
-    asl                             ;2
-    tay                             ;2
-    pla                             ;4
-    sta.wy  ptrLst+1,y              ;5
-    pla                             ;4
-    sta.wy  ptrLst,y                ;5
-    inx                             ;2
-    jmp     .loop                   ;3   =  61
-
-.drawBlocks
-    lda     WaitTbl,x               ;4
-    beq     .exitWait               ;2/3
-    tax                             ;2
-    jsr     WaitLines               ;6   =  14
-.exitWait
-    rts                             ;6   =   6
-
-WaitTbl 
-    .byte   $02,$02,$01,$00                 ; $1a20 (D)
-
-DigitGfx
-DigitCol0
-OneGfx
-    .byte   %00000000 ; |        |            $1a24 (G)
-    .byte   %00001000 ; |    #   |            $1a25 (G)
-    .byte   %00011000 ; |   ##   |            $1a26 (G)
-    .byte   %00001000 ; |    #   |            $1a27 (G)
-    .byte   %00001000 ; |    #   |            $1a28 (G)
-    .byte   %00001000 ; |    #   |            $1a29 (G)
-    .byte   %00001000 ; |    #   |            $1a2a (G)
-    .byte   %00001000 ; |    #   |            $1a2b (G)
-    .byte   %00001000 ; |    #   |            $1a2c (G)
-    .byte   %00011100 ; |   ###  |            $1a2d (G)
-    .byte   %00000000 ; |        |            $1a2e (G)
-DIGIT_H = . - OneGfx
-FourGfx
-    .byte   %00000000 ; |        |            $1a2f (G)
-    .byte   %00101000 ; |  # #   |            $1a30 (G)
-    .byte   %00101000 ; |  # #   |            $1a31 (G)
-    .byte   %00101000 ; |  # #   |            $1a32 (G)
-    .byte   %00101000 ; |  # #   |            $1a33 (G)
-    .byte   %00101000 ; |  # #   |            $1a34 (G)
-    .byte   %00111100 ; |  ####  |            $1a35 (G)
-    .byte   %00001000 ; |    #   |            $1a36 (G)
-    .byte   %00001000 ; |    #   |            $1a37 (G)
-    .byte   %00001000 ; |    #   |            $1a38 (G)
-    .byte   %00000000 ; |        |            $1a39 (G)
-SevenGfx
-    .byte   %00000000 ; |        |            $1a3a (G)
-    .byte   %00111100 ; |  ####  |            $1a3b (G)
-    .byte   %00000100 ; |     #  |            $1a3c (G)
-    .byte   %00000100 ; |     #  |            $1a3d (G)
-    .byte   %00000100 ; |     #  |            $1a3e (G)
-    .byte   %00001000 ; |    #   |            $1a3f (G)
-    .byte   %00001000 ; |    #   |            $1a40 (G)
-    .byte   %00010000 ; |   #    |            $1a41 (G)
-    .byte   %00010000 ; |   #    |            $1a42 (G)
-    .byte   %00010000 ; |   #    |            $1a43 (G)
-    .byte   %00000000 ; |        |            $1a44 (G)
-StarGfx
-    .byte   %00000000 ; |        |            $1a45 (G)
-    .byte   %00000000 ; |        |            $1a46 (G)
-    .byte   %01000010 ; | #    # |            $1a47 (G)
-    .byte   %00100100 ; |  #  #  |            $1a48 (G)
-    .byte   %00011000 ; |   ##   |            $1a49 (G)
-    .byte   %01111110 ; | ###### |            $1a4a (G)
-    .byte   %00011000 ; |   ##   |            $1a4b (G)
-    .byte   %00100100 ; |  #  #  |            $1a4c (G)
-    .byte   %01000010 ; | #    # |            $1a4d (G)
-    .byte   %00000000 ; |        |            $1a4e (G)
-    .byte   %00000000 ; |        |            $1a4f (G)
-DigitCol1
-TwoGfx
-    .byte   %00000000 ; |        |            $1a50 (G)
-    .byte   %00011000 ; |   ##   |            $1a51 (G)
-    .byte   %00100100 ; |  #  #  |            $1a52 (G)
-    .byte   %00000100 ; |     #  |            $1a53 (G)
-    .byte   %00000100 ; |     #  |            $1a54 (G)
-    .byte   %00001000 ; |    #   |            $1a55 (G)
-    .byte   %00010000 ; |   #    |            $1a56 (G)
-    .byte   %00100000 ; |  #     |            $1a57 (G)
-    .byte   %00100000 ; |  #     |            $1a58 (G)
-    .byte   %00111100 ; |  ####  |            $1a59 (G)
-    .byte   %00000000 ; |        |            $1a5a (G)
-FiveGfx
-    .byte   %00000000 ; |        |            $1a5b (G)
-    .byte   %00111100 ; |  ####  |            $1a5c (G)
-    .byte   %00100000 ; |  #     |            $1a5d (G)
-    .byte   %00100000 ; |  #     |            $1a5e (G)
-    .byte   %00111000 ; |  ###   |            $1a5f (G)
-    .byte   %00100100 ; |  #  #  |            $1a60 (G)
-    .byte   %00000100 ; |     #  |            $1a61 (G)
-    .byte   %00000100 ; |     #  |            $1a62 (G)
-    .byte   %00100100 ; |  #  #  |            $1a63 (G)
-    .byte   %00011000 ; |   ##   |            $1a64 (G)
-    .byte   %00000000 ; |        |            $1a65 (G)
-EightGfx
-    .byte   %00000000 ; |        |            $1a66 (G)
-    .byte   %00011000 ; |   ##   |            $1a67 (G)
-    .byte   %00100100 ; |  #  #  |            $1a68 (G)
-    .byte   %00100100 ; |  #  #  |            $1a69 (G)
-    .byte   %00100100 ; |  #  #  |            $1a6a (G)
-    .byte   %00011000 ; |   ##   |            $1a6b (G)
-    .byte   %00100100 ; |  #  #  |            $1a6c (G)
-    .byte   %00100100 ; |  #  #  |            $1a6d (G)
-    .byte   %00100100 ; |  #  #  |            $1a6e (G)
-    .byte   %00011000 ; |   ##   |            $1a6f (G)
-    .byte   %00000000 ; |        |            $1a70 (G)
-ZeroGfx
-    .byte   %00000000 ; |        |            $1a71 (G)
-    .byte   %00011000 ; |   ##   |            $1a72 (G)
-    .byte   %00100100 ; |  #  #  |            $1a73 (G)
-    .byte   %00100100 ; |  #  #  |            $1a74 (G)
-    .byte   %00100100 ; |  #  #  |            $1a75 (G)
-    .byte   %00100100 ; |  #  #  |            $1a76 (G)
-    .byte   %00100100 ; |  #  #  |            $1a77 (G)
-    .byte   %00100100 ; |  #  #  |            $1a78 (G)
-    .byte   %00100100 ; |  #  #  |            $1a79 (G)
-    .byte   %00011000 ; |   ##   |            $1a7a (G)
-    .byte   %00000000 ; |        |            $1a7b (G)
-DigitCol2
-ThreeGfx
-    .byte   %00000000 ; |        |            $1a7c (G)
-    .byte   %00011000 ; |   ##   |            $1a7d (G)
-    .byte   %00100100 ; |  #  #  |            $1a7e (G)
-    .byte   %00000100 ; |     #  |            $1a7f (G)
-    .byte   %00000100 ; |     #  |            $1a80 (G)
-    .byte   %00011000 ; |   ##   |            $1a81 (G)
-    .byte   %00000100 ; |     #  |            $1a82 (G)
-    .byte   %00000100 ; |     #  |            $1a83 (G)
-    .byte   %00100100 ; |  #  #  |            $1a84 (G)
-    .byte   %00011000 ; |   ##   |            $1a85 (G)
-    .byte   %00000000 ; |        |            $1a86 (G)
-SixGfx
-    .byte   %00000000 ; |        |            $1a87 (G)
-    .byte   %00011000 ; |   ##   |            $1a88 (G)
-    .byte   %00100100 ; |  #  #  |            $1a89 (G)
-    .byte   %00100000 ; |  #     |            $1a8a (G)
-    .byte   %00100000 ; |  #     |            $1a8b (G)
-    .byte   %00111000 ; |  ###   |            $1a8c (G)
-    .byte   %00100100 ; |  #  #  |            $1a8d (G)
-    .byte   %00100100 ; |  #  #  |            $1a8e (G)
-    .byte   %00100100 ; |  #  #  |            $1a8f (G)
-    .byte   %00011000 ; |   ##   |            $1a90 (G)
-    .byte   %00000000 ; |        |            $1a91 (G)
-NineGfx
-    .byte   %00000000 ; |        |            $1a92 (G)
-    .byte   %00011000 ; |   ##   |            $1a93 (G)
-    .byte   %00100100 ; |  #  #  |            $1a94 (G)
-    .byte   %00100100 ; |  #  #  |            $1a95 (G)
-    .byte   %00100100 ; |  #  #  |            $1a96 (G)
-    .byte   %00011100 ; |   ###  |            $1a97 (G)
-    .byte   %00000100 ; |     #  |            $1a98 (G)
-    .byte   %00000100 ; |     #  |            $1a99 (G)
-    .byte   %00100100 ; |  #  #  |            $1a9a (G)
-    .byte   %00011000 ; |   ##   |            $1a9b (G)
-    .byte   %00000000 ; |        |            $1a9c (G)
-HashGfx
-    .byte   %00000000 ; |        |            $1a9d (G)
-    .byte   %00000000 ; |        |            $1a9e (G)
-    .byte   %00100100 ; |  #  #  |            $1a9f (G)
-    .byte   %01111110 ; | ###### |            $1aa0 (G)
-    .byte   %00100100 ; |  #  #  |            $1aa1 (G)
-    .byte   %00100100 ; |  #  #  |            $1aa2 (G)
-    .byte   %01111110 ; | ###### |            $1aa3 (G)
-    .byte   %00100100 ; |  #  #  |            $1aa4 (G)
-    .byte   %00100100 ; |  #  #  |            $1aa5 (G)
-    .byte   %00000000 ; |        |            $1aa6 (G)
-    .byte   %00000000 ; |        |            $1aa7 (G)
-BlockGfx
-    .byte   %00000000 ; |        |            $1aa8 (G)
-    .byte   %11111111 ; |########|            $1aa9 (G)
-    .byte   %11111111 ; |########|            $1aaa (G)
-    .byte   %11111111 ; |########|            $1aab (G)
-    .byte   %11111111 ; |########|            $1aac (G)
-    .byte   %11111111 ; |########|            $1aad (G)
-    .byte   %11111111 ; |########|            $1aae (G)
-    .byte   %11111111 ; |########|            $1aaf (G)
-    .byte   %11111111 ; |########|            $1ab0 (G)
-    .byte   %11111111 ; |########|            $1ab1 (G)
-    .byte   %00000000 ; |        |            $1ab2 (G)
-DigitPtr
-    .byte   ZeroGfx  - DigitGfx             ; $1ab3 (D)  
-    .byte   OneGfx   - DigitGfx   
-    .byte   TwoGfx   - DigitGfx   
-    .byte   ThreeGfx - DigitGfx
-    .byte   FourGfx  - DigitGfx  
-    .byte   FiveGfx  - DigitGfx  
-    .byte   SixGfx   - DigitGfx
-    .byte   SevenGfx - DigitGfx 
-    .byte   EightGfx - DigitGfx 
-    .byte   NineGfx  - DigitGfx
-; ??? TODO
-    .byte   $d3,$cc,$ef,$f4,$16,$00         ; $1abd (D)
-    .byte   $06,$d3,$e1,$d6,$c5,$04,$12,$00 ; $1ac3 (D)
-    .byte   $12,$d4,$d2,$f5,$ee             ; $1acb (D)
-
-;===============================================================================
-
-    RORG    . - $800                ;           code for slice 0/3
-
-L12d0 SUBROUTINE
-    lda     #%01111111              ;2
-    ldx     #$08                    ;2          noise
-    ldy     #$ff                    ;2
-    sty     AUDV0                   ;3
-    ldy     #$01                    ;2
-    sty     AUDC0                   ;3
-.loop
-    sta     PF1                     ;3
-    sta     PF2                     ;3
-    stx     AUDF0                   ;3
-    jsr     Wait100ms               ;6
-    cmp     #$00                    ;2
-    beq     .exit                   ;2/3
-    dex                             ;2
-    lsr                             ;2
-    jmp     .loop                   ;3   =  40
-
-.exit
-    sta     AUDV0                   ;3
-    rts                             ;6   =   9
-
-SendLoadHeader20 SUBROUTINE
-    jsr     SendHeader              ;6
-    lda     #$20                    ;2
-    jsr     SendByte                ;6
-    lda     SL2_R1                  ;4          switch RAM bank 1 into slice 2 for reading (L1800..)
-    lda     L1802                   ;4
-    bne     .isInitialized          ;2/3
-    lda     #<L1308                 ;2
-    ldx     #>L1308                 ;2
-    jmp     .uninitialized          ;3   =  31
-
-L1308
-    brk                             ;7   =   7  number of extra bytes to send
-
-.isInitialized
-    lda     L180a                   ;4
-    ldx     L180b                   ;4
-.uninitialized
-    sta     dataPtr2                ;3
-    stx     dataPtr2+1              ;3
-    ldy     #$00                    ;2
-    lda     (dataPtr2),y            ;5
-    clc                             ;2
-    adc     #$05                    ;2
-    jsr     SendByte                ;6
-    lda     ram_D2                  ;3          = $00|$10
-    jsr     SendByte                ;6
-    lda     ram_D3                  ;3          = $00
-    jsr     SendByte                ;6
-    lda     dialSpeed               ;3
-    asl                             ;2
-    asl                             ;2
-    asl                             ;2
-    asl                             ;2
-    sta     tmpVarDE                ;3
-    lda     dialType                ;3
-    and     #$0f                    ;2
-    ora     tmpVarDE                ;3
-    jsr     SendByte                ;6          
-    jsr     SendCRC                 ;6
-    jsr     SetDelay                ;6
-    ldy     #$00                    ;2   =  91
-.loopSendA
-    lda     $1fda,y                 ;4          serial number from PROM? (..$1fdf)
-    jsr     SendByte                ;6
-    iny                             ;2
-    cpy     #$05                    ;2
-    bne     .loopSendA              ;2/3
-    ldy     #$00                    ;2
-    lda     (dataPtr2),y            ;5          number of bytes to send
-    beq     .skipInitialized        ;2/3
-    tax                             ;2   =  27
-.loopSend
-    iny                             ;2
-    lda     (dataPtr2),y            ;5
-    jsr     SendByte                ;6
-    dex                             ;2
-    bne     .loopSend               ;2/3 =  17
-.skipInitialized
-    jsr     SendCRC                 ;6
-    jsr     EndSend                 ;6
-    rts                             ;6   =  18
-
-    .byte   $14,$2e,$1b,$76,$16,$16,$17,$c4 ; $1f62 (D)
-    .byte   $16,$ff,$16,$c3,$15,$b5,$cd,$d3 ; $1f6a (D)
-    .byte   $d3,$a0,$d3,$d4,$a0,$d2,$c8,$66 ; $1f72 (D)
-    .byte   $16,$ef,$16,$79,$15,$32,$1d,$24 ; $1f7a (D)
-    .byte   $5a,$30,$03,$20,$81,$14         ; $1f82 (D)
-
-;===============================================================================
-
-    RORG    . + $c00                ;           code for slice 3/3
-
-CheckSum SUBROUTINE
-    ldx     #$00                    ;2
-    stx     crcHi                   ;3
-    lda     GL_STOP_PULSE           ;4   =   9  
-L1f8f
-    lda     L1fc0,x                 ;4          ..$1fde, most likely NOT from ROM or RAM
-    eor     crcHi                   ;3          
-    sta     crcHi                   ;3
-    asl                             ;2
-    rol     crcHi                   ;5
-    inx                             ;2
-    cpx     #$1f                    ;2
-    bne     L1f8f                   ;2/3
-    lda     L1fc0,x                 ;4          $1fdf
-    cmp     crcHi                   ;3
-  IF ORIGINAL
-    bne     .error                  ;2/3
-  ELSE
-    ds      2, $ea
-  ENDIF
-    lda     GL_STOP_C80             ;4          
-    rts                             ;6   =  42
-
-.error
-    lda     #GREEN_BEIGE|$6         ;2
-    sta     COLUBK                  ;3
-    jmp     .error                  ;3   =   8
-
-Check1000 SUBROUTINE
-    lda     GL_START_CA0            ;4          switch something on (allow writing?)
-    sty     L1000                   ;4
-    lda     GL_INPUT                ;4
-    and     #$03                    ;2
-    ldy     GL_STOP_C80             ;4          ...and off again? (stop writing?)
-    rts                             ;6   =  24
-
-Start SUBROUTINE
-    sei                             ;2   =   2
-L1fc0
-    cld                             ;2
-    lda     #$00                    ;2
-    tax                             ;2
-    ldy     #$a8                    ;2   =   8
-.loopS
-    txs                             ;2          this code does NOT init anything!
-    inx                             ;2
-    bne     .loopS                  ;2/3
-    dey                             ;2
-    bne     .loopS                  ;2/3
-    ldx     #$05                    ;2
-    lda     SL0_WD                  ;4   =  16  switch RAM bank ? (PROM?) into slice 0 for writing
-.loopCheck
-    ldy     #$02                    ;2
-    jsr     Check1000               ;6
-    cmp     #$02                    ;2
-  IF ORIGINAL
-    bne     L1fe4                   ;2/3 =  12
-  ELSE
-    ds      2, $ea
-  ENDIF
-    ldy     #$01                    ;2
-    jsr     Check1000               ;6
-    cmp     #$01                    ;2
-  IF ORIGINAL
-    beq     .ok                     ;2/3 =  14
-  ELSE
-    bne     .ok                     ;2/3 =  14
-  ENDIF
-L1fe4
-    lda     GL_680                  ;4          
-    dex                             ;2
-    bne     .loopCheck              ;2/3 =   8
-.ok  
-    lda     GL_680                  ;4          
-    jsr     CheckSum                ;6          -> GL_STOP_C80
-    lda     SL0_B0                  ;4          switch ROM bank 0 into slice 0
-    lda     SL1_B1                  ;4          switch ROM bank 1 into slice 1
-    lda     SL2_R0                  ;4          switch RAM bank 0 into slice 2 for reading
-    jmp     L1000                   ;3   =   6
-
-L1ffc
-    .word   Start,Start                     ; $1ffc (D)
