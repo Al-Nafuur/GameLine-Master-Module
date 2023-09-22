@@ -9,6 +9,7 @@
 ;===============================================================================
 
 ORIGINAL        = 1         ; 1 = compile 100% identical to dump
+MASTER          = 1
 
 
 ;===============================================================================
@@ -54,7 +55,16 @@ SG3_B0          = SG3_BX    ; switch ROM bank 0 into segment 3
 
 GL_680          = $680
 
-GL_STOP_C80     = $c80
+;$c80..$cff, bit:
+;6 ($40)- doesn't seem to do anything
+;5 ($20)- turn on PROM + input port when set
+;4 ($10)- turn on hybrid power when set
+;3 ($08)- take phone off hook when set
+;2 ($04)- select tone set
+;1 ($02)- enable modem tones when set, touch tones when clear
+;0 ($01)- tone
+
+GL_RESET        = $c80
 GL_START_CA0    = $ca0      ; allows write to $1000 or read from $1ff8
 GL_STOP_PULSE   = $cb0      ; could be...
 GL_START_PULSE  = $cb8      ; ... vice versa
@@ -191,7 +201,9 @@ digit0          = digitLst
 digit1          = digitLst+1
 digit2          = digitLst+2
 ;---------------------------------------
-
+  IF MASTER
+ram_AA          = $aa           ; used as replacement for ram_D2
+  ENDIF
 dataPtr         = $ab           ;..$ac
 dataPtr2        = $ad           ;..$ae
 ram_AF          = $af
@@ -286,7 +298,11 @@ L1813   = $1813     ; -> numberPtr+1, indexed
 
 L1c00
     .byte   $c1                             ; $1c00 (D) ram_AF
+  IF !MASTER
     .byte   $1e                             ; $1c01 (D) ram_D2+ram_B1
+  ELSE
+    .byte   $20
+  ENDIF
     .byte   $00,$00,$00,$00                 ; $1c02 (D) ram_C6, jmpIdx, timeCnt, timeCnt+1
     .word   MessagePtrs                     ; $1c06
     .byte   $64                             ; $1c08 -> TIM64T
@@ -949,7 +965,7 @@ L1f8f
   ELSE
     ds      2, $ea
   ENDIF
-    lda     GL_STOP_C80             ;4          
+    lda     GL_RESET                ;4          
     rts                             ;6   =  42
 
 .error
@@ -963,7 +979,7 @@ CheckASIC SUBROUTINE
     sty     $1000                   ;4          target address doesn't matter
     lda     GL_INPUT                ;4
     and     #$03                    ;2
-    ldy     GL_STOP_C80             ;4          ...and off again? (stop writing?)
+    ldy     GL_RESET                ;4          ...and off again? (stop writing?)
     rts                             ;6   =  24
 
 Start SUBROUTINE
@@ -1004,7 +1020,7 @@ L1fe4
     bne     .retryCheckASIC         ;2/3 =   8
 .ok  
     lda     GL_680                  ;4          
-    jsr     CheckSumPROM            ;6          -> GL_STOP_C80
+    jsr     CheckSumPROM            ;6          -> GL_RESET   
     lda     SG0_B1                  ;4          switch ROM bank 1 into segment 0
     lda     SG1_B2                  ;4          switch ROM bank 2 into segment 1
     lda     SG2_R0                  ;4          switch RAM bank 0 into segment 2 for reading
@@ -1043,6 +1059,10 @@ L100c
     stx     seg2Bank                ;3
     ldx     #$0d                    ;2          special bank into segment 3 for writing
     stx     seg3Bank                ;3                          
+  IF MASTER
+    ldx     #$ff                    ;2
+    stx     seg3BankB               ;3          invalid
+  ENDIF
     lda     SG3_B0                  ;4          switch ROM bank 0 into segment 3
     lda     SG2_R0                  ;4          switch RAM bank 0 into segment 2 for reading (L1800..)
     jsr     Check1800               ;6
@@ -1058,8 +1078,10 @@ Failed
     stx     L1802                   ;4
     lda     #$00                    ;2          ROM bank 3 into segment 3
     sta     seg3Bank                ;3
+  IF !MASTER
     lda     #$ff                    ;2
     sta     seg3BankB               ;3          invalid
+  ENDIF
     lda     #<L1c00                 ;2
     ldx     #>L1c00                 ;2
     jmp     ReadData                ;3   =  35
@@ -1185,7 +1207,11 @@ ReadData SUBROUTINE
     lda     #$00                    ;2
     sta     ram_AF                  ;3
     sta     frameCnt                ;3
+  IF !MASTER
     sta     ram_D2                  ;3
+  ELSE
+    sta     ram_AA                  ;3
+  ENDIF
     lda     #BROWN|$8               ;2
     sta     color                   ;3
     lda     #$01                    ;2
@@ -1263,7 +1289,11 @@ L118f
 L11a0
     ldy     #$01                    ;2          Y = 1
     lda     (dataPtr),y             ;5          $1c01 = $1e
+  IF !MASTER
     sta     ram_D2                  ;3
+  ELSE
+    sta     ram_AA                  ;3
+  ENDIF
     sta     ram_B1                  ;3
     jsr     WaitTim                 ;6
     lda     #$02                    ;2
@@ -1302,7 +1332,11 @@ L11d9
     lda     drawFlags               ;3
     bmi     L122a                   ;2/3!
     beq     .contDraw               ;2/3
+  IF !MASTER
     cpy     ram_D2                  ;3
+  ELSE
+    cpy     ram_AA                  ;3
+  ENDIF
     bne     .contDraw               ;2/3
     pha                             ;3
     pla                             ;4
@@ -1525,6 +1559,7 @@ FillDrawList SUBROUTINE
     rts                             ;6   =  34
 
 Dial SUBROUTINE
+  IF !MASTER
     ldy     dialCount               ;3
     bne     L135a                   ;2/3
     dey                             ;2
@@ -1554,20 +1589,65 @@ L135a
 L137a
     lda     SG2_R1                  ;4          switch RAM bank 1 into segment 2 for reading (L1800..)
     lda     L1802                   ;4
-    bne     L1392                   ;2/3
+    bne     .exit                   ;2/3
     lda     SG2_W1                  ;4          switch RAM bank 1 into segment 2 for writing (L1800..)
     lda     dialType                ;3          backup dialType and speed
     sta     L180c                   ;4
     lda     dialSpeed               ;3
     sta     L180d                   ;4
     lda     SG2_R1                  ;4   =  32  switch RAM bank 1 into segment 2 for reading (L1800..)
-L1392
+.exit
     rts                             ;6   =   6
 
 L1393
     lda     #$00                    ;2
     sta     dialCount               ;3
     jmp     Failed                  ;3   =   8 
+  ELSE
+    ldy     #0
+    sty     numberPtrIdx            ; zero index into telephone number table
+    lda     dialCount               ; get number of times called
+    cmp     #9                      ; see if called nine times
+    beq     .tooMany                ; too many times if so
+    inc     dialCount               ; increment number of times called
+    cpy     SG2_R1                  ; map cmos 2k into 1800 - 1bff
+    cpy     L1802                   ; see if saving phone calling
+    bne     .exit                   ; if not saving phone calling, don't change
+    dey                             ; make -1
+    cmp     #0                      ; see if first time
+    beq     .initCall               ; do initialize if so
+    inc     dialSpeed               ; increment dial type
+    lda     dialSpeed               ; get what it is now
+    cmp     #2                      ; is allowed -1, 0, 1
+    bne     .saveCall               ; is ok, save it
+    sty     dialSpeed               ; set back to -1
+    inc     dialType                ; increment line type
+    lda     dialType                ; get what it is now
+    cmp     #1                      ; is allowed -1, 0
+    bne     .saveCall               ; is ok, save it
+    sty     dialType                ; set back to -1
+    beq     .saveCall               ; and save it
+; 
+.initCall 
+    sty     dialType                ; initialize line type to -1
+    sty     dialSpeed               ; initiliaze dial type to -1
+.saveCall 
+    lda     SG2_W1                  ; map cmos 2k into 1800 - 1bff for write
+    lda     dialType                ; get line type
+    sta     L180c                   ; save away
+    lda     dialSpeed               ; get dial type
+    sta     L180d                   ; save away
+    lda     SG2_R1                  ; turn off write
+; 
+.exit  
+    rts                             ; and return
+
+.tooMany  
+    lda     GL_STOP_PULSE           ; open telephone relay (go on-hook)
+    lda     #0
+    sta     dialCount               ; zero number of times called for next time
+    jmp     L1000                   ; and start all over
+  ENDIF
 
 L139a
     lda     #$00                    ;2
@@ -1969,8 +2049,13 @@ L15f1 SUBROUTINE                    ;           called from CheckBit6 (jmpIdx = 
     rts                             ;6   =  11  return from CheckBit6
 
 PhoneNum
+  IF !MASTER
     .byte   $0d,$08,$00,$00,$03,$06,$08,$01 ; PhoneNum (D) 8003681242
     .byte   $02,$04,$02,$0f,$00,$00         ; $15fe (D)
+  ELSE
+    .byte   $06,$09,$09,$05,$06,$08,$00,$0F ; PhoneNum (D) 699568
+    .byte   $00,$00,$00,$00,$00,$00
+  ENDIF
 JmpTbl
     .word   DialNumber, L156b, L157c, L1591 ; $1604 (D)
     .word   L15a1, L15a1, L15f1             ; $160c (D)
@@ -2022,13 +2107,18 @@ L1633
     jsr     SetDelay                ;6
     jsr     FirePressed             ;6
     jsr     GetData                 ;6
+  IF MASTER
+    sta     tmpVarDE                ;3
+  ENDIF
     bpl     L165e                   ;2/3
     bvc     StoreDigit              ;2/3
     ldx     #$00                    ;2
     jmp     ProcessInput            ;3   =  34
 
 L165e
+  IF !MASTER
     sta     tmpVarDE                ;3
+  ENDIF
     jsr     GetPointer              ;6
     lsr     tmpVarDE                ;5
     bcc     L1672                   ;2/3
@@ -2082,7 +2172,9 @@ GetPointer SUBROUTINE
     rts                             ;6   =  28
 
 StoreDigit
+  IF !MASTER
     tay                             ;2
+  ENDIF
     lda     xDial                   ;3
     asl                             ;2
     asl                             ;2
@@ -2092,10 +2184,19 @@ StoreDigit
     bpl     .isDigit                ;2/3
     asl                             ;2
     bmi     .isAsterisk             ;2/3
+  IF !MASTER
     tya                             ;2          hash
     ldy     ram_D2                  ;3
     jmp     L165e                   ;3   =  32
 
+  ELSE
+    lda     numDigits
+    cmp     #$03                    ;2
+    beq     L165e                   ;2/3
+.digitsDone 
+    jmp     DigitsDone
+
+  ENDIF
 .isDigit
     ldx     numDigits               ;3
     cpx     #$03                    ;2
@@ -2110,8 +2211,12 @@ StoreDigit
 .exit
     rts                             ;6   =   6
 
+  IF !MASTER
 .digitsDone
     jmp     DigitsDone              ;3   =   3
+  ELSE
+    nop
+  ENDIF  
 
 SkipFire
     lda     SWCHB                   ;4
@@ -2177,12 +2282,20 @@ L1726
 L172f
     jsr     L17a3                   ;6
     bcc     .exitDir                ;2/3
+  IF !MASTER
     sty     ram_D2                  ;3
+  ELSE
+    sty     ram_AA                  ;3
+  ENDIF
     cpy     #$32                    ;2
     bmi     .exitDir                ;2/3
     lda     ram_B2                  ;3
     sec                             ;2
+  IF !MASTER
     sbc     ram_D2                  ;3
+  ELSE
+    sbc     ram_AA                  ;3
+  ENDIF
     cmp     #$0c                    ;2
     beq     L1745                   ;2/3
     bpl     .exitDir                ;2/3 =  29
@@ -2209,7 +2322,11 @@ L175b
 L1762
     jsr     L17b4                   ;6
     bcc     .exitDir                ;2/3
+  IF !MASTER
     sty     ram_D2                  ;3
+  ELSE
+    sty     ram_AA                  ;3
+  ENDIF
     tya                             ;2
     sec                             ;2
     sbc     ram_B1                  ;3
@@ -2285,7 +2402,11 @@ DialPadNums
     .byte   $03,$06,$09,$80                 ; $17cd (D)
 
 GetData SUBROUTINE
+  IF !MASTER
     ldy     ram_D2                  ;3
+  ELSE
+    ldy     ram_AA                  ;3
+  ENDIF
     lda     (dataPtr),y             ;5
     sta     tmpVarDE                ;3
     and     #$0f                    ;2
@@ -2770,8 +2891,13 @@ SendLoadHeader10 SUBROUTINE
     jsr     SendByte                ;6         
     jsr     SendByte                ;6         
     jsr     SendCRC                 ;6         
+  IF !MASTER
     jsr     EndSend                 ;6         
     rts                             ;6   =  63 
+  ELSE
+    rts
+    ds      3, $ea
+  ENDIF
     
 StoreByte SUBROUTINE
 ; A = stored byte
@@ -2862,7 +2988,7 @@ L1738
 L1747
     lsr     ram_D9                  ;5         
     bcs     L1750                   ;2/3       
-    lda     GL_STOP_C80             ;4         
+    lda     GL_RESET                ;4         
     inc     ram_DF                  ;5   =  16 
 L1750
     lsr     ram_D9                  ;5         
